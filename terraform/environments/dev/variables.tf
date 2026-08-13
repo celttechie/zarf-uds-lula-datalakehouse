@@ -1,3 +1,9 @@
+variable "vm_name" {
+  description = "Name of the virtual machine domain"
+  type        = string
+  default     = "datalakehouse-dev-node"
+}
+
 variable "libvirt_user" {
   description = "Username for hypervisor SSH access"
   type        = string
@@ -37,7 +43,7 @@ variable "libvirt_network_name" {
 variable "vm_memory" {
   description = "RAM allocated to VM in MB"
   type        = number
-  default     = 16384 # 16 GB
+  default     = 16384
 }
 
 variable "vm_vcpu" {

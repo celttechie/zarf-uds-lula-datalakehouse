@@ -2,7 +2,7 @@
 
 An enterprise-grade reference architecture for delivering an **Air-Gapped Data Lakehouse** (MinIO S3 + Apache Parquet + DuckDB/PostgreSQL) with continuous **DoD IL4 / IL5 Accreditation Artifact Generation** using **Zarf**, **UDS (Unicorn Delivery System)**, and **Lula (OSCAL Compliance-as-Code)**.
 
-Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/libvirt` provider) and `cloud-init`.
+Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/libvirt` provider) using **HashiCorp Standard Module Structure** and `cloud-init`.
 
 ---
 
@@ -11,7 +11,7 @@ Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/lib
 ```mermaid
 flowchart TD
     subgraph Provisioning ["Phase 1: Infrastructure Provisioning"]
-        TF[Terraform + libvirt] -->|cloud-init| VM[KVM Guest VM on T5600]
+        TF[Terraform Module libvirt_vm] -->|cloud-init| VM[KVM Guest VM on T5600]
         VM --> K3S[K3s / Local K8s Cluster]
     end
 
@@ -51,7 +51,7 @@ flowchart TD
 cat PLAN.md
 
 # 2. Provision Dev VM Infrastructure via Terraform
-cd terraform/environments/01-dev-vm
+cd terraform/environments/dev
 cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform apply

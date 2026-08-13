@@ -14,38 +14,37 @@ provider "libvirt" {
 
 # 1. Fetch official Ubuntu 22.04 LTS Cloud Image
 resource "libvirt_volume" "ubuntu_base" {
-  name   = "datalakehouse-ubuntu-22.04-base.qcow2"
+  name   = "${var.vm_name}-ubuntu-22.04-base.qcow2"
   pool   = "default"
   source = "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
   format = "qcow2"
 }
 
-# 2. Create copy-on-write disk volume for the Dev VM
-resource "libvirt_volume" "datalakehouse_disk" {
-  name           = "datalakehouse-node-disk.qcow2"
+# 2. Create copy-on-write disk volume for the VM
+resource "libvirt_volume" "vm_disk" {
+  name           = "${var.vm_name}-disk.qcow2"
   pool           = "default"
   base_volume_id = libvirt_volume.ubuntu_base.id
   format         = "qcow2"
-  size           = 53687091200 # 50 GB
+  size           = var.disk_size_bytes
 }
 
 # 3. Inject Cloud-Init configuration
 resource "libvirt_cloudinit_disk" "commoninit" {
-  name = "datalakehouse-commoninit.iso"
+  name = "${var.vm_name}-commoninit.iso"
   pool = "default"
   user_data = templatefile("${path.module}/templates/cloud_init.cfg", {
-    hostname       = "datalakehouse-node"
+    hostname       = var.vm_name
     ssh_public_key = file(var.ssh_public_key_path)
   })
 }
 
-# 4. Define Dev VM Domain
-resource "libvirt_domain" "datalakehouse_node" {
-  name   = "datalakehouse-node"
+# 4. Define VM Domain
+resource "libvirt_domain" "vm_node" {
+  name   = var.vm_name
   memory = var.vm_memory
   vcpu   = var.vm_vcpu
 
-  # Expose physical host CPU virtualization extensions (/dev/kvm) into guest VM
   cpu {
     mode = "host-passthrough"
   }
@@ -59,7 +58,7 @@ resource "libvirt_domain" "datalakehouse_node" {
   }
 
   disk {
-    volume_id = libvirt_volume.datalakehouse_disk.id
+    volume_id = libvirt_volume.vm_disk.id
   }
 
   console {

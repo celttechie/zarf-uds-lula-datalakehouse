@@ -1,6 +1,6 @@
 # Master Execution Plan: Air-Gapped IL4/IL5 Data Lakehouse (Zarf + UDS + Lula)
 
-This document outlines the **6-Phase Implementation Plan** for building, deploying, and auditing an air-gapped Data Lakehouse and automated IL4/IL5 accreditation engine.
+This document outlines the **6-Phase Implementation Plan** for building, deploying, and auditing an air-gapped Data Lakehouse and automated IL4/IL5 accreditation engine using HashiCorp Standard Module Structure.
 
 > ⚠️ **Verification Gate Requirement:** After completing each phase, you MUST execute the **Gate Verification Commands** and confirm green status before advancing to the next phase.
 
@@ -19,17 +19,18 @@ This document outlines the **6-Phase Implementation Plan** for building, deployi
 ## 🚩 Phase 1: Infrastructure Provisioning via Terraform (`libvirt` / KVM)
 
 ### Objective
-Automate the deployment of a dedicated development VM (`datalakehouse-node`) on the local T5600 hypervisor host using Terraform and `cloud-init`.
+Automate the deployment of a dedicated development VM (`datalakehouse-dev-node`) on the local T5600 hypervisor host using Terraform (`modules/libvirt_vm`) and `cloud-init`.
 
 ### Tasks
-- [ ] Create `terraform/environments/01-dev-vm/main.tf` using `dmacvicar/libvirt` provider.
+- [ ] Maintain reusable child module in `terraform/modules/libvirt_vm`.
+- [ ] Configure `terraform/environments/dev/main.tf` root module calling `modules/libvirt_vm`.
 - [ ] Configure `cloud_init.cfg` template to inject SSH keys, hostname, and K3s prerequisites.
-- [ ] Run `terraform init` and `terraform apply`.
+- [ ] Run `terraform init` and `terraform apply` inside `terraform/environments/dev`.
 
 ### 🔍 Gate Verification Commands (Phase 1)
 ```bash
 # 1. Verify VM Domain is running on Hypervisor
-virsh list --all | grep datalakehouse-node
+virsh list --all | grep datalakehouse-dev-node
 
 # 2. Test SSH Access & QEMU Agent responsiveness
 ssh brian@<vm-ip> 'hostname && uname -a'
@@ -77,7 +78,7 @@ Bundle all container images, manifests, and scripts into a single immutable `.ta
 - [ ] Include all required OCI container images (`minio/minio`, `postgres:15-alpine`, `python:3.11-slim`).
 - [ ] Run `zarf package create --confirm`.
 
-### 3. Gate Verification Commands (Phase 3)
+### 🔍 Gate Verification Commands (Phase 3)
 ```bash
 # 1. Inspect generated Zarf package metadata & SBOM
 zarf package inspect zarf-package-il5-data-lakehouse-amd64-0.2.0.tar.zst

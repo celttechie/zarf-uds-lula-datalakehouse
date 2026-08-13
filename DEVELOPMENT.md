@@ -1,6 +1,6 @@
 # Developer & Workflow Guide
 
-This guide details the local workstation prerequisites, environment configuration, and verification commands required to build and run the **Zarf + UDS + Lula Data Lakehouse** project.
+This guide details the local workstation prerequisites, environment configuration, and verification commands required to build and run the **Zarf + UDS + Lula Data Lakehouse** project using HashiCorp Standard Module Structure.
 
 ---
 
@@ -25,10 +25,10 @@ Ensure the following tools are installed on your host system:
    ssh-copy-id brian@127.0.0.1
    ```
 
-2. **Configure Terraform Variables:**
-   Navigate to the dev VM environment directory:
+2. **Configure Terraform Dev Environment:**
+   Navigate to the dev environment root module:
    ```bash
-   cd terraform/environments/01-dev-vm
+   cd terraform/environments/dev
    cp terraform.tfvars.example terraform.tfvars
    ```
 
