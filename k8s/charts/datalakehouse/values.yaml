@@ -1,0 +1,21 @@
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: RELEASE.2024-01-16T16-07-38Z
+  accessKey: minioadmin
+  secretKey: minioadmin
+
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 15-alpine
+  database: gold_db
+  user: postgres
+  password: postgrespassword
+
+etlJob:
+  image:
+    repository: python
+    tag: 3.11-slim
