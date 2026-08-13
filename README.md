@@ -10,24 +10,33 @@ Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/lib
 
 ```mermaid
 flowchart TD
-    subgraph Provisioning ["Phase 1: Infrastructure Provisioning"]
-        TF[Terraform Module libvirt_vm] -->|cloud-init| VM[KVM Guest VM on T5600]
+    subgraph P1 ["Phase 1: Infrastructure Provisioning"]
+        TF[Terraform libvirt_vm Module] -->|cloud-init| VM[KVM Guest VM on T5600]
         VM --> K3S[K3s / Local K8s Cluster]
     end
 
-    subgraph Packaging ["Phase 2: Zarf & UDS Air-Gapped Bundling"]
-        APP[Python ETL + MinIO S3 + Postgres] --> ZARF[Zarf Package Creator]
-        ZARF -->|zarf package create| TAR[zarf-package-datalakehouse.tar.zst]
-        TAR --> UDS[UDS Bundle Orchestration]
+    subgraph P2 ["Phase 2: Data Lakehouse & ETL Core"]
+        RAW[Unstructured Data & Logs] --> MINIO[MinIO S3 Data Lake]
+        MINIO -->|PyArrow / DuckDB| PARQUET[Apache Parquet Silver Layer]
+        PARQUET --> PG[PostgreSQL Gold Warehouse]
     end
 
-    subgraph Deployment ["Phase 3: Zero-Trust Cluster Deployment"]
+    subgraph P3 ["Phase 3: Zarf Air-Gapped Packaging"]
+        P2 --> ZARF[Zarf Package Creator]
+        ZARF -->|zarf package create| TAR[zarf-package-datalakehouse.tar.zst]
+    end
+
+    subgraph P4 ["Phase 4: UDS Bundle & K8s Deploy"]
+        TAR --> UDS[UDS Bundle Orchestrator]
         UDS -->|uds deploy| K3S
     end
 
-    subgraph Accreditation ["Phase 4: Lula OSCAL IL4/IL5 Compliance"]
+    subgraph P5 ["Phase 5: Lula OSCAL Compliance Audit"]
         K3S --> LULA[Lula Assessment Engine]
         LULA -->|lula evaluate| OSCAL[OSCAL Assessment JSON]
+    end
+
+    subgraph P6 ["Phase 6: Accreditation Artifact Package"]
         OSCAL --> REPORT[Generated IL4/IL5 ATO Package / SAR Report]
     end
 ```

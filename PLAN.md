@@ -8,10 +8,37 @@ This document outlines the **6-Phase Implementation Plan** for building, deployi
 
 ## 📅 Phase Summary Roadmap
 
-```
-[Phase 1: Terraform VM Provisioning] ➔ [Phase 2: Data Lakehouse & ETL Core] ➔ [Phase 3: Zarf Air-Gapped Package] 
-                                                                                        │
-[Phase 6: IL4/IL5 ATO Artifact Package]  [Phase 5: Lula OSCAL Audit Engine]  [Phase 4: UDS Bundle & K8s Deploy]
+```mermaid
+flowchart TD
+    subgraph P1 ["Phase 1: Infrastructure Provisioning"]
+        TF[Terraform libvirt_vm Module] -->|cloud-init| VM[KVM Guest VM on T5600]
+        VM --> K3S[K3s / Local K8s Cluster]
+    end
+
+    subgraph P2 ["Phase 2: Data Lakehouse & ETL Core"]
+        RAW[Unstructured Data & Logs] --> MINIO[MinIO S3 Data Lake]
+        MINIO -->|PyArrow / DuckDB| PARQUET[Apache Parquet Silver Layer]
+        PARQUET --> PG[PostgreSQL Gold Warehouse]
+    end
+
+    subgraph P3 ["Phase 3: Zarf Air-Gapped Packaging"]
+        P2 --> ZARF[Zarf Package Creator]
+        ZARF -->|zarf package create| TAR[zarf-package-datalakehouse.tar.zst]
+    end
+
+    subgraph P4 ["Phase 4: UDS Bundle & K8s Deploy"]
+        TAR --> UDS[UDS Bundle Orchestrator]
+        UDS -->|uds deploy| K3S
+    end
+
+    subgraph P5 ["Phase 5: Lula OSCAL Compliance Audit"]
+        K3S --> LULA[Lula Assessment Engine]
+        LULA -->|lula evaluate| OSCAL[OSCAL Assessment JSON]
+    end
+
+    subgraph P6 ["Phase 6: Accreditation Artifact Package"]
+        OSCAL --> REPORT[Generated IL4/IL5 ATO Package / SAR Report]
+    end
 ```
 
 ---
