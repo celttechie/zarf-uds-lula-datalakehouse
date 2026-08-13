@@ -1,0 +1,34 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+
+# Zarf & UDS Generated Artifacts
+*.tar.zst
+zarf-sbom/
+uds-sbom/
+.zarf-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.egg-info/
+
+# K8s & Credentials
+kubeconfig
+*.pem
+*.key
+*.crt
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
