@@ -1,0 +1,8 @@
+cluster_node_name      = "datalakehouse-k8s-node-01"
+cluster_node_ip        = "192.168.122.100"
+nested_hypervisor_user = "ubuntu"
+nested_hypervisor_ip   = "192.168.9.150"
+ssh_private_key_path   = "~/.ssh/id_ed25519"
+ssh_public_key_path    = "~/.ssh/id_ed25519.pub"
+vm_memory             = 8192
+vm_vcpu               = 2
