@@ -34,6 +34,12 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/id_ed25519.pub"
 }
 
+variable "ssh_known_hosts_path" {
+  description = "Local path to the SSH known_hosts file for server host key verification"
+  type        = string
+  default     = "~/.ssh/known_hosts"
+}
+
 variable "vm_memory" {
   description = "RAM allocated to cluster node in MB"
   type        = number

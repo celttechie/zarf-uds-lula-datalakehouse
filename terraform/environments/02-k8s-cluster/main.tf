@@ -36,7 +36,7 @@ module "k8s_cluster_node" {
   nested_hypervisor_ip   = var.nested_hypervisor_ip
   ssh_private_key_path   = var.ssh_private_key_path
   ssh_public_key_path    = var.ssh_public_key_path
-  ssh_known_hosts_path   = "${path.module}/../01-nested-sandbox/.terraform/known_hosts"
+  ssh_known_hosts_path   = var.ssh_known_hosts_path
   vm_memory              = var.vm_memory
   vm_vcpu                = var.vm_vcpu
 
