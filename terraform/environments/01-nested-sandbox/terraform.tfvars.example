@@ -1,0 +1,10 @@
+sandbox_vm_name     = "datalakehouse-sandbox-hypervisor"
+sandbox_vm_ip       = "192.168.9.150"
+libvirt_user        = "<username>"
+libvirt_host_ip     = "192.168.1.100"
+ssh_private_key_path = "~/.ssh/id_ed25519"
+ssh_public_key_path  = "~/.ssh/id_ed25519.pub"
+ssh_known_hosts_path = "~/.ssh/known_hosts"
+libvirt_network_name = "host-bridge"
+vm_memory           = 16384
+vm_vcpu             = 4
