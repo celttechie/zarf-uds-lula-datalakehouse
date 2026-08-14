@@ -2,7 +2,9 @@
 
 An enterprise-grade reference architecture for delivering an **Air-Gapped Data Lakehouse** (MinIO S3 + Apache Parquet + DuckDB/PostgreSQL) with continuous **DoD IL4 / IL5 Accreditation Artifact Generation** using **Zarf**, **UDS (Unicorn Delivery System)**, and **Lula (OSCAL Compliance-as-Code)**.
 
-Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/libvirt` provider) using **HashiCorp Standard Module Structure** and `cloud-init`.
+> 💡 **Infrastructure Agnostic Design:** 
+> * **Option A (Included Terraform Setup):** Automate the creation of a nested KVM VM hypervisor sandbox on your host server (`192.168.9.110`) using Terraform (`01-nested-sandbox` & `02-k8s-cluster`).
+> * **Option B (Bring Your Own Server / Cluster):** Have an existing server, bare-metal node, AWS EC2 instance, or K3s/KinD cluster? **Skip Terraform entirely!** Point your `KUBECONFIG` to your cluster and deploy the Zarf package and UDS bundle directly.
 
 ---
 
@@ -10,33 +12,26 @@ Provisioned on local hypervisor infrastructure via **Terraform** (`dmacvicar/lib
 
 ```mermaid
 flowchart TD
-    subgraph P1 ["Phase 1: Infrastructure Provisioning"]
-        TF[Terraform libvirt_vm Module] -->|cloud-init| VM[KVM Guest VM on T5600]
-        VM --> K3S[K3s / Local K8s Cluster]
+    subgraph TargetEnv ["Target Infrastructure Options"]
+        OPT_A[Option A: Terraform Nested Sandbox VM]
+        OPT_B[Option B: Any Existing Server / K8s Cluster]
     end
 
-    subgraph P2 ["Phase 2: Data Lakehouse & ETL Core"]
-        RAW[Unstructured Data & Logs] --> MINIO[MinIO S3 Data Lake]
-        MINIO -->|PyArrow / DuckDB| PARQUET[Apache Parquet Silver Layer]
-        PARQUET --> PG[PostgreSQL Gold Warehouse]
-    end
-
-    subgraph P3 ["Phase 3: Zarf Air-Gapped Packaging"]
-        P2 --> ZARF[Zarf Package Creator]
+    subgraph Packaging ["Phase 2 & 3: Zarf & UDS Air-Gapped Bundling"]
+        APP[Python ETL + MinIO S3 + Postgres] --> ZARF[Zarf Package Creator]
         ZARF -->|zarf package create| TAR[zarf-package-datalakehouse.tar.zst]
     end
 
-    subgraph P4 ["Phase 4: UDS Bundle & K8s Deploy"]
+    subgraph Deployment ["Phase 4: Zero-Trust UDS Bundle Deployment"]
         TAR --> UDS[UDS Bundle Orchestrator]
-        UDS -->|uds deploy| K3S
+        UDS -->|uds deploy| K3S[Any K8s Cluster / Server]
+        OPT_A -.-> K3S
+        OPT_B -.-> K3S
     end
 
-    subgraph P5 ["Phase 5: Lula OSCAL Compliance Audit"]
+    subgraph Accreditation ["Phase 5 & 6: Lula OSCAL IL4/IL5 Compliance"]
         K3S --> LULA[Lula Assessment Engine]
         LULA -->|lula evaluate| OSCAL[OSCAL Assessment JSON]
-    end
-
-    subgraph P6 ["Phase 6: Accreditation Artifact Package"]
         OSCAL --> REPORT[Generated IL4/IL5 ATO Package / SAR Report]
     end
 ```
@@ -47,7 +42,7 @@ flowchart TD
 
 | File | Description |
 | :--- | :--- |
-| 📋 **[PLAN.md](PLAN.md)** | Step-by-step phased execution roadmap with explicit verification checkpoints at every phase. |
+| 📋 **[PLAN.md](PLAN.md)** | Step-by-step 6-phase execution roadmap with explicit verification checkpoints at every phase. |
 | 🛠️ **[DEVELOPMENT.md](DEVELOPMENT.md)** | Tool prerequisites, environment variable configuration, and developer workflow commands. |
 | 📑 **[docs/adr/](docs/adr/)** | Architecture Decision Records capturing design choices, trade-offs, and rationale. |
 
@@ -55,18 +50,28 @@ flowchart TD
 
 ## 🚀 Quick Start Summary
 
+### Option A: Provision Local Dev VM Infrastructure via Terraform
 ```bash
-# 1. Inspect the Master Plan
-cat PLAN.md
-
-# 2. Provision Dev VM Infrastructure via Terraform
-cd terraform/environments/dev
+# 1. Provision Stage 1 Nested Sandbox VM (192.168.9.110)
+cd terraform/environments/01-nested-sandbox
 cp terraform.tfvars.example terraform.tfvars
-terraform init
-terraform apply
+terraform init && terraform apply
 
-# 3. Verify VM Connectivity & K8s Cluster
-ssh brian@<vm-ip> 'kubectl get nodes'
+# 2. Provision Stage 2 K8s Cluster Nodes inside Sandbox VM
+cd ../02-k8s-cluster
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+```
+
+### Option B: Deploy to Any Existing Server or Cluster
+```bash
+# Export your existing cluster kubeconfig
+export KUBECONFIG=~/.kube/config
+
+# Build and deploy directly via Zarf & UDS
+make package
+make deploy
+make audit
 ```
 
 For full setup instructions, follow **[DEVELOPMENT.md](DEVELOPMENT.md)**.

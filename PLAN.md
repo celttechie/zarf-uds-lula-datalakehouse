@@ -1,6 +1,8 @@
 # Master Execution Plan: Air-Gapped IL4/IL5 Data Lakehouse (Zarf + UDS + Lula)
 
-This document outlines the **6-Phase Implementation Plan** for building, deploying, and auditing an air-gapped Data Lakehouse and automated IL4/IL5 accreditation engine using HashiCorp Standard Module Structure.
+This document outlines the **6-Phase Implementation Plan** for building, deploying, and auditing an air-gapped Data Lakehouse and automated IL4/IL5 accreditation engine.
+
+> 💡 **Infrastructure Agnostic Design:** Phase 1 (Terraform Provisioning) is **optional**. Anyone with an existing server or Kubernetes cluster (K3s, RKE2, EKS, KinD, bare-metal) can skip Phase 1 and deploy directly starting at Phase 2/3.
 
 > ⚠️ **Verification Gate Requirement:** After completing each phase, you MUST execute the **Gate Verification Commands** and confirm green status before advancing to the next phase.
 
@@ -10,9 +12,13 @@ This document outlines the **6-Phase Implementation Plan** for building, deployi
 
 ```mermaid
 flowchart TD
-    subgraph P1 ["Phase 1: Infrastructure Provisioning"]
-        TF[Terraform libvirt_vm Module] -->|cloud-init| VM[KVM Guest VM on T5600]
-        VM --> K3S[K3s / Local K8s Cluster]
+    subgraph TargetEnv ["Target Infrastructure Options"]
+        OPT_A[Option A: Terraform 01-nested-sandbox & 02-k8s-cluster]
+        OPT_B[Option B: Any Existing Server / K8s Cluster]
+    end
+
+    subgraph P1 ["Phase 1 (Optional): Terraform Infrastructure"]
+        OPT_A -->|terraform apply| K3S_A[Local KVM Sandbox Cluster]
     end
 
     subgraph P2 ["Phase 2: Data Lakehouse & ETL Core"]
@@ -28,7 +34,9 @@ flowchart TD
 
     subgraph P4 ["Phase 4: UDS Bundle & K8s Deploy"]
         TAR --> UDS[UDS Bundle Orchestrator]
-        UDS -->|uds deploy| K3S
+        UDS -->|uds deploy| K3S[Target Cluster / Server]
+        K3S_A -.-> K3S
+        OPT_B -.-> K3S
     end
 
     subgraph P5 ["Phase 5: Lula OSCAL Compliance Audit"]
@@ -43,29 +51,32 @@ flowchart TD
 
 ---
 
-## 🚩 Phase 1: Infrastructure Provisioning via Terraform (`libvirt` / KVM)
+## 🚩 Phase 1 (Optional): Infrastructure Provisioning via Terraform (`libvirt` / KVM)
 
 ### Objective
-Automate the deployment of a dedicated development VM (`datalakehouse-dev-node`) on the local T5600 hypervisor host using Terraform (`modules/libvirt_vm`) and `cloud-init`.
+Automate the deployment of a Layer 1 **Nested Hypervisor Sandbox VM** (`datalakehouse-sandbox-node`) on `192.168.9.110` with `/dev/kvm` host-passthrough, deterministic ED25519 SSH host keys, and Stage 2 cluster nodes running inside it.
+
+*(Skip Phase 1 if deploying to an existing server or Kubernetes cluster).*
 
 ### Tasks
-- [ ] Maintain reusable child module in `terraform/modules/libvirt_vm`.
-- [ ] Configure `terraform/environments/dev/main.tf` root module calling `modules/libvirt_vm`.
-- [ ] Configure `cloud_init.cfg` template to inject SSH keys, hostname, and K3s prerequisites.
-- [ ] Run `terraform init` and `terraform apply` inside `terraform/environments/dev`.
+- [ ] Configure Stage 1: `terraform/environments/01-nested-sandbox` referencing module `nested_sandbox_vm`.
+- [ ] Generate deterministic ED25519 host key using `tls_private_key.sandbox_host_key` and populate `.terraform/known_hosts`.
+- [ ] Inject host keys into `cloud_init.cfg` under `ssh_keys:` (`ed25519_private` & `ed25519_public`).
+- [ ] Configure Stage 2: `terraform/environments/02-k8s-cluster` referencing module `k8s_cluster_nodes` targeting the Layer 1 Sandbox VM.
+- [ ] Run `terraform init` and `terraform apply` in `01-nested-sandbox` then `02-k8s-cluster`.
 
 ### 🔍 Gate Verification Commands (Phase 1)
 ```bash
-# 1. Verify VM Domain is running on Hypervisor
-virsh list --all | grep datalakehouse-dev-node
+# 1. Verify Layer 1 Sandbox VM Domain is running on physical hypervisor (192.168.9.110)
+ssh bjarrett@192.168.9.110 'virsh list --all' | grep datalakehouse-sandbox-node
 
-# 2. Test SSH Access & QEMU Agent responsiveness
-ssh brian@<vm-ip> 'hostname && uname -a'
+# 2. Test SSH Access with strict host key verification
+ssh -i ~/.ssh/id_ed25519 brian@<sandbox-vm-ip> 'hostname && virsh list --all'
 
-# 3. Verify K3s cluster node status
-ssh brian@<vm-ip> 'kubectl get nodes -o wide'
+# 3. Verify K3s cluster node status inside Layer 1 Sandbox
+ssh brian@<sandbox-vm-ip> 'kubectl get nodes -o wide'
 ```
-**Success Criteria:** VM state is `running`, SSH connection succeeds without password, and `kubectl get nodes` returns `Ready`.
+**Success Criteria:** Stage 1 VM state is `running`, SSH connects securely using generated host key without host key warning prompts, and internal KVM/Libvirt inside Sandbox is active.
 
 ---
 
@@ -78,7 +89,7 @@ Build the Data Lakehouse application components (MinIO S3 for unstructured data,
 - [ ] Create `src/lakehouse_etl.py` script handling raw unstructured JSON/logs -> Bronze S3 bucket.
 - [ ] Implement PyArrow / DuckDB transformation to columnar Parquet -> Silver S3 bucket.
 - [ ] Implement Gold layer analytical summary table inside PostgreSQL.
-- [ ] Create Kubernetes manifests in `k8s/` (`minio.yaml`, `postgres.yaml`, `etl-job.yaml`).
+- [ ] Create Kubernetes Helm chart in `k8s/charts/datalakehouse`.
 
 ### 🔍 Gate Verification Commands (Phase 2)
 ```bash
@@ -145,22 +156,22 @@ curl -k https://minio.datalake.local/minio/health/live
 ## 🚩 Phase 5: Lula OSCAL Continuous Compliance Audit
 
 ### Objective
-Define DoD IL4/IL5 security controls in OSCAL format (`oscal-il5.yaml`) and run continuous compliance validation against the live cluster state using Lula.
+Define DoD IL4/IL5 security controls in OSCAL format (`oscal-il5.yaml`) and run continuous compliance validation against the live cluster state using Lula and the Go exporter CLI.
 
 ### Tasks
 - [ ] Write `oscal-il5.yaml` covering NIST SC-13 (Data-at-Rest Protection) and SC-8 (Data-in-Transit Protection).
 - [ ] Embed Rego validation policy rules targeting K8s Pod `securityContext` and Istio `PeerAuthentication`.
-- [ ] Run `lula evaluate -f oscal-il5.yaml -o il5-results.json`.
+- [ ] Run `lula evaluate -f oscal-il5.yaml -o il5-results.json` and parse with `./bin/compliance_exporter`.
 
 ### 🔍 Gate Verification Commands (Phase 5)
 ```bash
 # 1. Run Lula assessment CLI
 lula evaluate -f oscal-il5.yaml -o il5-results.json
 
-# 2. Validate JSON evaluation output structure
-python3 -c "import json; d=json.load(open('il5-results.json')); print('Lula Evaluation Passing:', d.get('results', [{}])[0].get('passing'))"
+# 2. Parse OSCAL results with Go compliance exporter
+./bin/compliance_exporter il5-results.json
 ```
-**Success Criteria:** `lula evaluate` executes successfully and returns `passing: true` across all defined IL4/IL5 controls.
+**Success Criteria:** `lula evaluate` executes successfully and Go exporter returns passing status across all defined IL4/IL5 controls.
 
 ---
 
@@ -171,7 +182,7 @@ Transform machine-readable OSCAL assessment JSON into human-readable System Secu
 
 ### Tasks
 - [ ] Run `lula generate manifest` to generate compliance markdown.
-- [ ] Write `scripts/generate_ato_package.py` to parse Lula JSON into executive PDF/Markdown summary.
+- [ ] Write `scripts/generate_ato_package.py` to parse Lula JSON into executive summary.
 - [ ] Export final accreditation artifact package into `docs/accreditation/`.
 
 ### 🔍 Gate Verification Commands (Phase 6)

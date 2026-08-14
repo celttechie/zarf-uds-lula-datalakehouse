@@ -1,9 +1,0 @@
-vm_name             = "datalakehouse-dev-node"
-libvirt_user        = "brian"
-libvirt_host_ip     = "127.0.0.1"
-ssh_private_key_path = "~/.ssh/id_rsa"
-ssh_public_key_path  = "~/.ssh/id_rsa.pub"
-ssh_known_hosts_path = "~/.ssh/known_hosts"
-libvirt_network_name = "default"
-vm_memory           = 16384
-vm_vcpu             = 4
