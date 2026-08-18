@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: medallion-etl-job
+  labels:
+    app: etl-job
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: etl-job
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: etl-runner
+          image: "{{ .Values.etlJob.image.repository }}:{{ .Values.etlJob.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip install --no-cache-dir boto3 duckdb psycopg2-binary
+              python /src/lakehouse_etl.py
+          env:
+            - name: MINIO_ENDPOINT
+              value: "http://minio:9000"
+            - name: MINIO_ACCESS_KEY
+              value: {{ .Values.minio.accessKey | quote }}
+            - name: MINIO_SECRET_KEY
+              value: {{ .Values.minio.secretKey | quote }}
+            - name: POSTGRES_HOST
+              value: "postgresql"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgresql.password | quote }}
+          volumeMounts:
+            - name: etl-script-volume
+              mountPath: /src
+      volumes:
+        - name: etl-script-volume
+          configMap:
+            name: etl-script-configmap
