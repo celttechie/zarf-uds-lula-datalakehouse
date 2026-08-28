@@ -1,4 +1,4 @@
-.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 package deploy audit go-build clean
+.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test verify-phase3 package deploy audit go-build clean
 
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -20,6 +20,14 @@ dev-destroy-all: ## Destroy all Stage 1 & Stage 2 Terraform infrastructure
 verify-phase1: ## Run automated Phase 1 verification and generate Markdown artifact report
 	@echo "🔍 Running automated Phase 1 health check & generating artifact report..."
 	python3 scripts/verify_phase1.py
+
+test: ## Run full unit test suite across all phases
+	@echo "🧪 Running unit tests..."
+	python3 -m unittest discover tests
+
+verify-phase3: ## Run automated Phase 3 Zarf packaging verification and generate Markdown artifact report
+	@echo "🔍 Running automated Phase 3 Zarf packaging health check & generating artifact report..."
+	python3 scripts/verify_phase3.py
 
 package: ## Build Zarf air-gapped package (.tar.zst)
 	@echo "📦 Building Zarf package..."

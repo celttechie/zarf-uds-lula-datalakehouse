@@ -86,10 +86,10 @@ ssh brian@<sandbox-vm-ip> 'kubectl get nodes -o wide'
 Build the Data Lakehouse application components (MinIO S3 for unstructured data, Apache Parquet converter, DuckDB/PostgreSQL for warehousing analytics).
 
 ### Tasks
-- [ ] Create `src/lakehouse_etl.py` script handling raw unstructured JSON/logs -> Bronze S3 bucket.
-- [ ] Implement PyArrow / DuckDB transformation to columnar Parquet -> Silver S3 bucket.
-- [ ] Implement Gold layer analytical summary table inside PostgreSQL.
-- [ ] Create Kubernetes Helm chart in `k8s/charts/datalakehouse`.
+- [x] Create `src/lakehouse_etl.py` script handling raw unstructured JSON/logs -> Bronze S3 bucket.
+- [x] Implement PyArrow / DuckDB transformation to columnar Parquet -> Silver S3 bucket.
+- [x] Implement Gold layer analytical summary table inside PostgreSQL.
+- [x] Create Kubernetes Helm chart in `k8s/charts/datalakehouse`.
 
 ### 🔍 Gate Verification Commands (Phase 2)
 ```bash
@@ -112,9 +112,10 @@ python3 -c "import duckdb; print(duckdb.query('SELECT * FROM summary_df').df())"
 Bundle all container images, manifests, and scripts into a single immutable `.tar.zst` Zarf package capable of deploying into zero-trust, disconnected environments.
 
 ### Tasks
-- [ ] Draft `zarf.yaml` with components for `minio-storage`, `postgres-warehouse`, and `etl-engine`.
-- [ ] Include all required OCI container images (`minio/minio`, `postgres:15-alpine`, `python:3.11-slim`).
-- [ ] Run `zarf package create --confirm`.
+- [x] Draft `zarf.yaml` with component `datalakehouse-core` deploying local Helm chart and manifests.
+- [x] Include all required OCI container images (`minio/minio:RELEASE.2024-01-16T16-07-38Z`, `postgres:15-alpine`, `python:3.11-slim`).
+- [x] Create configuration and automated test verification suites (`zarf-config.yaml`, `test_zarf_package.py`, `verify_phase3.py`).
+- [ ] Run `zarf package create --confirm` in target connected packaging environment.
 
 ### 🔍 Gate Verification Commands (Phase 3)
 ```bash
