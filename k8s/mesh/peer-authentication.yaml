@@ -1,0 +1,15 @@
+# Istio PeerAuthentication for DoD IL4/IL5 Data Lakehouse Namespace
+# Enforces STRICT mutual TLS (mTLS) encryption and cryptographic workload identity
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: datalakehouse
+  labels:
+    app.kubernetes.io/name: datalakehouse-peer-auth
+    app.kubernetes.io/part-of: il5-data-lakehouse-bundle
+    uds.defenseunicorns.com/security-level: il5
+    uds.defenseunicorns.com/mesh-mtls: strict
+spec:
+  mtls:
+    mode: STRICT

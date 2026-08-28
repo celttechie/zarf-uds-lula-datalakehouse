@@ -1,0 +1,53 @@
+# UDS Bundle Definition for Air-Gapped DoD IL4/IL5 Medallion Data Lakehouse
+# Orchestrates Zarf packages and UDS Core zero-trust infrastructure
+kind: UDSBundle
+metadata:
+  name: il5-data-lakehouse-bundle
+  description: "Air-Gapped DoD IL4/IL5 Medallion Data Lakehouse & Zero-Trust Service Mesh UDS Bundle"
+  version: "0.4.0"
+  architecture: amd64
+  authors:
+    - "Defense Unicorns & DevOps Team"
+
+packages:
+  # Primary Data Lakehouse Workload Package
+  - name: datalakehouse
+    ref: "0.3.0"
+    repository: zarf-package-il5-data-lakehouse
+    path: .
+    namespace: datalakehouse
+    overrides:
+      datalakehouse-core:
+        variables:
+          DOMAIN: datalake.local
+          NAMESPACE: datalakehouse
+          STORAGE_RETENTION: "true"
+          STORAGE_CLASS: local-path
+          SECURITY_PROFILE: il5-strict
+        values:
+          - path: minio.enabled
+            value: true
+          - path: postgresql.enabled
+            value: true
+          - path: etlJob.enabled
+            value: true
+          - path: mesh.mtls.mode
+            value: STRICT
+          - path: mesh.authorizationPolicy.enabled
+            value: true
+
+  # UDS Core Foundation (Istio mTLS Service Mesh, Keycloak SSO, Pepr Admission Control)
+  - name: uds-core
+    ref: "0.22.0"
+    repository: oci://ghcr.io/defenseunicorns/packages/uds/core
+    optional: true
+    overrides:
+      istio-system:
+        variables:
+          MTLS_MODE: STRICT
+      pepr:
+        variables:
+          ENFORCE_IL5_POLICIES: "true"
+      keycloak:
+        variables:
+          REALM_NAME: datalakehouse-realm

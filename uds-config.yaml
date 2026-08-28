@@ -1,0 +1,32 @@
+# UDS Bundle Runtime & Deployment Configuration
+# Defines default bundle creation, orchestration parameters, storage, and service mesh settings
+bundle:
+  create:
+    set:
+      architecture: amd64
+      source: .
+      output: .
+  deploy:
+    set:
+      # Kubernetes namespace for workload deployment
+      namespace: datalakehouse
+      # Ingress domain configuration
+      domain: datalake.local
+      # Storage class definition
+      storage_class: local-path
+      # Storage volume persistence & retention policy
+      storage_retention: true
+      # Target DoD Impact Level security baseline
+      security_level: IL5
+      # Istio Service Mesh Zero-Trust configuration
+      mesh:
+        mtls_mode: STRICT
+        istio_injection: enabled
+        authorization_policy: strict-medallion-ingress
+        peer_authentication: default
+      # UDS Core service integration parameters
+      core:
+        pepr_enforcement: strict
+        keycloak_realm: datalakehouse-realm
+        istio_gateway: uds-core-ingressgateway
+        monitoring_enabled: true
