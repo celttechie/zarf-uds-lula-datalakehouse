@@ -1,6 +1,6 @@
 # Phase 3 Zarf Packaging Verification Report
 
-**Generated At:** 2026-08-28 17:55:35 UTC  
+**Generated At:** 2026-08-28 18:23:05 UTC  
 **Overall Status:** `PASSED`  
 **Target Package:** `il5-data-lakehouse` (v0.3.0)
 
@@ -29,7 +29,7 @@
 | **Zarf Runtime Config (zarf-config.yaml)** | `zarf-config.yaml` | Valid package config structure | Valid configuration section found | `PASS` |
 | **Helm Chart Structural Integrity** | `k8s/charts/datalakehouse` | Valid Chart.yaml, values.yaml & balanced templates | Templates & manifests syntactically valid (bracket & YAML structure verified) | `PASS` |
 | **OCI Container Image Alignment & Pinning** | `zarf.yaml / values.yaml` | All Helm images bundled with explicit non-latest tags | All 3 images bundled with pinned immutable tags | `PASS` |
-| **Unit & Integration Test Suite** | `tests/ (Phase 2 + Phase 3)` | All unit tests pass cleanly | 10 tests executed, all passed | `PASS` |
+| **Unit & Integration Test Suite** | `tests/ (Phase 2 + Phase 3)` | All unit tests pass cleanly | 18 tests executed, all passed | `PASS` |
 
 ---
 
@@ -61,9 +61,9 @@ Inserting aggregated metrics into 'category_sales_metrics' table...
 Gold metrics successfully written to PostgreSQL!
 
 Medallion ETL Pipeline completed successfully.
-..........
+..................
 ----------------------------------------------------------------------
-Ran 10 tests in 0.009s
+Ran 18 tests in 0.021s
 
 OK
 ```
