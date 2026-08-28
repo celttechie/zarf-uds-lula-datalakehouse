@@ -48,6 +48,10 @@ resource "libvirt_domain" "cluster_node" {
   vcpu       = var.vm_vcpu
   qemu_agent = true
 
+  cpu {
+    mode = "host-passthrough"
+  }
+
   cloudinit = libvirt_cloudinit_disk.node_init.id
 
   network_interface {

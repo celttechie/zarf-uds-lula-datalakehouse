@@ -1,0 +1,201 @@
+import os
+import json
+import boto3
+import duckdb
+import psycopg2
+from botocore.client import Config
+
+
+# --- Environment Variable Configurations ---
+# These defaults match the configurations found in the Helm values.yaml
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgresql")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "gold_db")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgrespassword")
+
+import time
+
+def wait_for_services(s3_client, max_retries=15, delay=2):
+    """Wait for MinIO and PostgreSQL to be available before running ETL."""
+    print("Waiting for MinIO and PostgreSQL services to be ready...")
+    # 1. Wait for MinIO
+    for i in range(max_retries):
+        try:
+            s3_client.list_buckets()
+            print(" -> MinIO S3 is ready.")
+            break
+        except Exception as e:
+            print(f" -> Waiting for MinIO... (attempt {i+1}/{max_retries})")
+            time.sleep(delay)
+    else:
+        print("⚠️ Warning: MinIO may not be fully ready, proceeding anyway.")
+
+    # 2. Wait for PostgreSQL
+    for i in range(max_retries):
+        try:
+            conn = psycopg2.connect(
+                host=POSTGRES_HOST,
+                port=POSTGRES_PORT,
+                dbname=POSTGRES_DB,
+                user=POSTGRES_USER,
+                password=POSTGRES_PASSWORD,
+                connect_timeout=3
+            )
+            conn.close()
+            print(" -> PostgreSQL is ready.")
+            break
+        except Exception as e:
+            print(f" -> Waiting for PostgreSQL... (attempt {i+1}/{max_retries})")
+            time.sleep(delay)
+    else:
+        print("⚠️ Warning: PostgreSQL may not be fully ready, proceeding anyway.")
+
+def main():
+    print("Starting Medallion ETL Pipeline...")
+    
+    # ==========================================
+    # 1. BRONZE LAYER: Raw JSON Mock Data to MinIO
+    # ==========================================
+    print("\n--- Processing Bronze Layer ---")
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_ACCESS_KEY,
+        aws_secret_access_key=MINIO_SECRET_KEY,
+        region_name='us-east-1',
+        config=Config(signature_version='s3v4')
+    )
+    
+    wait_for_services(s3_client)
+
+    # Ensure Bronze and Silver buckets exist
+    for bucket in ['bronze', 'silver']:
+        try:
+            s3_client.create_bucket(Bucket=bucket)
+            print(f"Bucket '{bucket}' ensured.")
+        except Exception as e:
+            # Bucket might already exist, safe to ignore
+            pass
+            
+    # Create raw mock data
+    mock_data = [
+        {"transaction_id": 1, "user": "Alice", "amount": 150.50, "category": "Electronics", "timestamp": "2023-10-01T12:00:00Z"},
+        {"transaction_id": 2, "user": "Bob", "amount": 200.00, "category": "Clothing", "timestamp": "2023-10-01T12:30:00Z"},
+        {"transaction_id": 3, "user": "Charlie", "amount": 50.00, "category": "Electronics", "timestamp": "2023-10-02T09:00:00Z"},
+        {"transaction_id": 4, "user": "Dave", "amount": 300.00, "category": "Groceries", "timestamp": "2023-10-02T10:15:00Z"},
+        {"transaction_id": 5, "user": "Eve", "amount": 100.00, "category": "Clothing", "timestamp": "2023-10-03T14:20:00Z"},
+        {"transaction_id": 6, "user": "Frank", "amount": 75.25, "category": "Groceries", "timestamp": "2023-10-03T15:00:00Z"}
+    ]
+    
+    # Upload raw JSON to Bronze
+    print("Uploading raw JSON data to Bronze bucket (s3://bronze/transactions.json)...")
+    s3_client.put_object(
+        Bucket='bronze',
+        Key='transactions.json',
+        Body=json.dumps(mock_data)
+    )
+    print("Bronze layer ingestion completed.")
+    
+    # ==========================================
+    # 2. SILVER LAYER: Transform to Parquet (DuckDB)
+    # ==========================================
+    print("\n--- Processing Silver Layer ---")
+    con = duckdb.connect()
+    
+    # Configure DuckDB for MinIO (S3 API compatible)
+    s3_endpoint_bare = MINIO_ENDPOINT.replace("http://", "").replace("https://", "")
+    
+    try:
+        con.execute("INSTALL httpfs;")
+    except Exception:
+        pass
+
+    con.execute(f"""
+        LOAD httpfs;
+        SET s3_endpoint='{s3_endpoint_bare}';
+        SET s3_access_key_id='{MINIO_ACCESS_KEY}';
+        SET s3_secret_access_key='{MINIO_SECRET_KEY}';
+        SET s3_use_ssl=false;
+        SET s3_region='us-east-1';
+        SET s3_url_style='path';
+    """)
+    
+    # Read Bronze JSON, transform types, filter anomalies, and write Silver Parquet directly to S3
+    print("Transforming Bronze JSON to Silver Parquet...")
+    con.execute("""
+        COPY (
+            SELECT 
+                transaction_id,
+                user,
+                amount,
+                category,
+                CAST(timestamp AS TIMESTAMP) AS txn_timestamp,
+                CAST(timestamp AS DATE) AS txn_date
+            FROM read_json_auto('s3://bronze/transactions.json')
+            WHERE amount > 0  -- Simple data quality rule
+        ) TO 's3://silver/transactions.parquet' (FORMAT PARQUET)
+    """)
+    print("Data transformed and saved to Silver bucket (s3://silver/transactions.parquet).")
+    
+    # ==========================================
+    # 3. GOLD LAYER: Aggregate Metrics to PostgreSQL
+    # ==========================================
+    print("\n--- Processing Gold Layer ---")
+    # Read from Silver layer to compute aggregated metrics
+    print("Aggregating metrics via DuckDB...")
+    gold_metrics = con.execute("""
+        SELECT 
+            category,
+            COUNT(transaction_id) as total_transactions,
+            SUM(amount) as total_sales
+        FROM read_parquet('s3://silver/transactions.parquet')
+        GROUP BY category
+    """).fetchall()
+    
+    print("Connecting to PostgreSQL (Gold Layer)...")
+    pg_conn = psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
+        dbname=POSTGRES_DB,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD
+    )
+    pg_cursor = pg_conn.cursor()
+    
+    # Ensure Gold table exists
+    pg_cursor.execute("""
+        CREATE TABLE IF NOT EXISTS category_sales_metrics (
+            category VARCHAR(50) PRIMARY KEY,
+            total_transactions INT,
+            total_sales DECIMAL(10, 2),
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Upsert aggregated metrics into PostgreSQL
+    print("Inserting aggregated metrics into 'category_sales_metrics' table...")
+    for row in gold_metrics:
+        category, tx_count, tx_sales = row
+        pg_cursor.execute("""
+            INSERT INTO category_sales_metrics (category, total_transactions, total_sales, last_updated)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (category) DO UPDATE
+            SET total_transactions = EXCLUDED.total_transactions,
+                total_sales = EXCLUDED.total_sales,
+                last_updated = CURRENT_TIMESTAMP
+        """, (category, tx_count, tx_sales))
+        print(f" -> Upserted: {category} | Txns: {tx_count} | Sales: ${tx_sales}")
+        
+    pg_conn.commit()
+    pg_cursor.close()
+    pg_conn.close()
+    print("Gold metrics successfully written to PostgreSQL!")
+    print("\nMedallion ETL Pipeline completed successfully.")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,19 @@
+    # Terraform caches & plugins
+    **/.terraform/
+    *.tfstate
+    *.tfstate.backup
+
+    # Build artifacts & packages
+    bin/
+    *.tar.zst
+    *.tar.gz
+    il5-results.json
+
+    # Python cache & virtual environments
+    __pycache__/
+    *.pyc
+    .venv/
+    venv/
+
+    # Git metadata
+    .git/

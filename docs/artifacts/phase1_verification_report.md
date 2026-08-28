@@ -1,6 +1,6 @@
 # Phase 1 Infrastructure Verification Report
 
-**Generated At:** 2026-08-13 20:18:04 UTC  
+**Generated At:** 2026-08-18 10:38:31 UTC  
 **Overall Status:** `PASSED`
 
 ---
@@ -29,8 +29,8 @@ datalakehouse-sandbox-hypervisor
 
 ### K3s Cluster Node Status Output:
 ```text
-NAME                        STATUS   ROLES           AGE   VERSION        INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME
-datalakehouse-k8s-node-01   Ready    control-plane   22m   v1.36.3+k3s1   192.168.122.60   <none>        Ubuntu 22.04.5 LTS   5.15.0-187-generic (amd64)   containerd://2.3.2-k3s2
+NAME                        STATUS   ROLES           AGE     VERSION        INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME
+datalakehouse-k8s-node-01   Ready    control-plane   4d14h   v1.36.3+k3s1   192.168.122.60   <none>        Ubuntu 22.04.5 LTS   5.15.0-187-generic (amd64)   containerd://2.3.2-k3s2
 ```
 
 ---
@@ -40,4 +40,4 @@ datalakehouse-k8s-node-01   Ready    control-plane   22m   v1.36.3+k3s1   192.16
 | Check | Target | Expected | Result | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | **Stage 1 SSH & Libvirt** | `192.168.9.176` | `virsh list` active | `datalakehouse-sandbox-hypervisor` | `PASS` |
-| **Stage 2 K3s Cluster Node** | `192.168.122.60` | Node `Ready` | `datalakehouse-k8s-node-01   Ready    control-plane   22m   v1.36.3+k3s1   192.168.122.60   <none>        Ubuntu 22.04.5 LTS   5.15.0-187-generic (amd64)   containerd://2.3.2-k3s2` | `PASS` |
+| **Stage 2 K3s Cluster Node** | `192.168.122.60` | Node `Ready` | `datalakehouse-k8s-node-01   Ready    control-plane   4d14h   v1.36.3+k3s1   192.168.122.60   <none>        Ubuntu 22.04.5 LTS   5.15.0-187-generic (amd64)   containerd://2.3.2-k3s2` | `PASS` |
