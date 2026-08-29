@@ -1,0 +1,30 @@
+# Zarf Package Definition for Air-Gapped DoD IL4/IL5 Medallion Data Lakehouse
+kind: ZarfPackageConfig
+metadata:
+  name: il5-data-lakehouse
+  description: "Air-gapped DoD IL4/IL5 Medallion Data Lakehouse & Compliance Engine"
+  version: "0.3.0"
+  architecture: amd64
+
+components:
+  - name: datalakehouse-core
+    required: true
+    description: "Air-gapped Data Lakehouse Core Components (MinIO S3, PostgreSQL, Medallion ETL Job)"
+    charts:
+      - name: datalakehouse
+        version: 0.1.0
+        localPath: k8s/charts/datalakehouse
+        namespace: datalakehouse
+    images:
+      - minio/minio:RELEASE.2024-01-16T16-07-38Z
+      - postgres:15-alpine
+      - python:3.11-slim
+    actions:
+      onDeploy:
+        after:
+          - cmd: "kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=minio -n datalakehouse --timeout=120s || true"
+            description: "Verify MinIO S3 object storage readiness"
+          - cmd: "kubectl wait --for=condition=ready pod -l app=postgresql -n datalakehouse --timeout=120s || true"
+            description: "Verify PostgreSQL gold warehouse readiness"
+          - cmd: "kubectl get pods,svc,jobs -n datalakehouse -o wide || true"
+            description: "Display deployed Lakehouse resources"

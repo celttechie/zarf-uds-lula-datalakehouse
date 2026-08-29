@@ -1,0 +1,17 @@
+# Zarf CLI & Package Configuration
+# Defines default package creation and deployment parameters for il5-data-lakehouse
+package:
+  create:
+    set:
+      # Build architecture override (amd64 / arm64)
+      architecture: amd64
+      # Software Bill of Materials (SBOM) generation
+      sbom: true
+  deploy:
+    set:
+      # Target Kubernetes namespace
+      namespace: datalakehouse
+      # Ingress hostname domain for zero-trust mTLS mesh
+      domain: datalake.local
+      # Storage retention parameters
+      storage_retention: true

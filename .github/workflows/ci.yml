@@ -2,13 +2,13 @@ name: CI & Compliance Validation Workflow
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, phase* ]
   pull_request:
     branches: [ main ]
 
 jobs:
   validate:
-    name: Terraform, Helm, Zarf & Go Validation
+    name: OpenTofu, Helm, Python & Go Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -20,28 +20,41 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
         with:
-          terraform_version: 1.6.0
+          python-version: '3.11'
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu-version: '1.8.2'
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
           version: 'v3.13.0'
 
-      - name: Validate Terraform Syntax & Format
+      - name: Validate OpenTofu Syntax & Format
         run: |
-          cd terraform/environments/dev
-          terraform fmt -check
-          terraform init -backend=false
-          terraform validate
+          for env in terraform/environments/*; do
+            if [ -d "$env" ]; then
+              echo "==> Validating $env with OpenTofu"
+              (cd "$env" && tofu fmt -check && tofu init -backend=false && tofu validate)
+            fi
+          done
 
       - name: Lint Helm Chart
         run: |
           helm lint k8s/charts/datalakehouse
 
+      - name: Install Python Dependencies & Run Tests
+        run: |
+          pip install -r requirements.txt
+          pip install pyyaml
+          python -m unittest discover -s tests
+
       - name: Build Go Compliance Exporter CLI
         run: |
           make go-build
-          ./bin/compliance_exporter --help || true
+          test -f ./bin/compliance_exporter
