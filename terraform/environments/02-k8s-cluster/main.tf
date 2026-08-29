@@ -40,6 +40,6 @@ module "k8s_cluster_node" {
   vm_memory              = var.vm_memory
   vm_vcpu                = var.vm_vcpu
 
-  host_private_key       = tls_private_key.cluster_node_host_key.private_key_openssh
-  host_public_key        = tls_private_key.cluster_node_host_key.public_key_openssh
+  host_private_key = tls_private_key.cluster_node_host_key.private_key_openssh
+  host_public_key  = tls_private_key.cluster_node_host_key.public_key_openssh
 }

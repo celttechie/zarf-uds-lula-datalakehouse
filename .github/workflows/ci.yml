@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Terraform, Helm, Zarf & Go Validation
+    name: Terraform, Helm, Python & Go Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -19,6 +19,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+
+      - name: Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -32,16 +37,24 @@ jobs:
 
       - name: Validate Terraform Syntax & Format
         run: |
-          cd terraform/environments/dev
-          terraform fmt -check
-          terraform init -backend=false
-          terraform validate
+          for env in terraform/environments/*; do
+            if [ -d "$env" ]; then
+              echo "==> Validating $env"
+              (cd "$env" && terraform fmt -check && terraform init -backend=false && terraform validate)
+            fi
+          done
 
       - name: Lint Helm Chart
         run: |
           helm lint k8s/charts/datalakehouse
 
+      - name: Install Python Dependencies & Run Tests
+        run: |
+          pip install -r requirements.txt
+          pip install pyyaml
+          python -m unittest discover -s tests
+
       - name: Build Go Compliance Exporter CLI
         run: |
           make go-build
-          ./bin/compliance_exporter --help || true
+          test -f ./bin/compliance_exporter

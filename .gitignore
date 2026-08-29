@@ -32,3 +32,4 @@ kubeconfig
 .idea/
 .DS_Store
 *.swp
+bin/
