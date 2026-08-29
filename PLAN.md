@@ -135,9 +135,11 @@ zarf package inspect --sbom zarf-package-il5-data-lakehouse-amd64-0.2.0.tar.zst
 Orchestrate the Zarf package using **UDS (Unicorn Delivery System)** alongside UDS Core (Istio mTLS service mesh, Keycloak SSO, and Pepr policies).
 
 ### Tasks
-- [ ] Create `uds-bundle.yaml` referencing the local Zarf package.
-- [ ] Initialize Zarf on target VM cluster (`zarf init`).
-- [ ] Deploy UDS bundle (`uds deploy`).
+- [x] Create `uds-bundle.yaml` referencing the local Zarf package with component overrides and UDS Core integration.
+- [x] Implement Istio STRICT mTLS (`k8s/mesh/peer-authentication.yaml`) and Zero-Trust ingress (`k8s/mesh/authorization-policy.yaml`).
+- [x] Define parameterized runtime configuration (`uds-config.yaml`) for storage classes and security baselines.
+- [x] Create automated Phase 4 unit tests (`tests/test_uds_bundle.py`) and verification gate (`scripts/verify_phase4.py`).
+- [x] Orchestrate UDS bundle creation (`make bundle-create`) and cluster deployment (`make bundle-deploy`).
 
 ### 🔍 Gate Verification Commands (Phase 4)
 ```bash

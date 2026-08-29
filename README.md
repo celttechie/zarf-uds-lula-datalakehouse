@@ -17,14 +17,15 @@ flowchart TD
         OPT_B[Option B: Any Existing Server / K8s Cluster]
     end
 
-    subgraph Packaging ["Phase 2 & 3: Zarf & UDS Air-Gapped Bundling"]
+    subgraph Packaging ["Phase 2 & 3: Zarf Air-Gapped Packaging"]
         APP[Python ETL + MinIO S3 + Postgres] --> ZARF[Zarf Package Creator]
-        ZARF -->|zarf package create| TAR[zarf-package-datalakehouse.tar.zst]
+        ZARF -->|zarf package create| TAR[zarf-package-il5-data-lakehouse.tar.zst]
     end
 
-    subgraph Deployment ["Phase 4: Zero-Trust UDS Bundle Deployment"]
+    subgraph Orchestration ["Phase 4: UDS Bundle & Zero-Trust Mesh"]
         TAR --> UDS[UDS Bundle Orchestrator]
-        UDS -->|uds deploy| K3S[Any K8s Cluster / Server]
+        MESH[Istio mTLS STRICT + Authz Policies] --> UDS
+        UDS -->|uds deploy| K3S[Target K8s Cluster]
         OPT_A -.-> K3S
         OPT_B -.-> K3S
     end
@@ -45,6 +46,7 @@ flowchart TD
 | 📋 **[PLAN.md](PLAN.md)** | Step-by-step 6-phase execution roadmap with explicit verification checkpoints at every phase. |
 | 🛠️ **[DEVELOPMENT.md](DEVELOPMENT.md)** | Tool prerequisites, environment variable configuration, and developer workflow commands. |
 | 📑 **[docs/adr/](docs/adr/)** | Architecture Decision Records capturing design choices, trade-offs, and rationale. |
+| 📊 **[docs/artifacts/](docs/artifacts/)** | Automated phase verification reports and audit artifacts. |
 
 ---
 
@@ -65,12 +67,20 @@ terraform init && terraform apply
 
 ### Option B: Deploy to Any Existing Server or Cluster
 ```bash
-# Export your existing cluster kubeconfig
+# 1. Export your existing cluster kubeconfig
 export KUBECONFIG=~/.kube/config
 
-# Build and deploy directly via Zarf & UDS
+# 2. Build Zarf Air-Gapped Package (Phase 3)
 make package
-make deploy
+
+# 3. Create & Deploy UDS Bundle with Istio STRICT mTLS (Phase 4)
+make bundle-create
+make bundle-deploy
+
+# 4. Verify Phase 4 Health & Security Baseline
+make verify-phase4
+
+# 5. Evaluate DoD IL4/IL5 Compliance (Phase 5)
 make audit
 ```
 
