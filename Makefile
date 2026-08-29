@@ -1,4 +1,4 @@
-.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 package deploy audit go-build clean
+.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 package deploy audit go-build clean
 
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -23,6 +23,10 @@ verify-phase4: ## Run automated Phase 4 UDS Bundle and Service Mesh verification
 	@echo "🔍 Running automated Phase 4 UDS Bundle & Service Mesh health check & generating artifact report..."
 	python3 scripts/verify_phase4.py
 
+verify-phase5: ## Run automated Phase 5 Lula OSCAL compliance verification and Go exporter
+	@echo "🛡️  Running automated Phase 5 Lula OSCAL compliance verification..."
+	python3 scripts/verify_phase5.py
+
 package: ## Build Zarf air-gapped package (.tar.zst)
 	@echo "📦 Building Zarf package..."
 	zarf package create --confirm
@@ -32,16 +36,16 @@ deploy: ## Deploy UDS Bundle into target K8s cluster
 	uds deploy --confirm
 
 audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go exporter
-	@echo "🛡️  Executing Lula OSCAL evaluation..."
-	lula evaluate -f oscal-il5.yaml -o il5-results.json
+	@echo "🛡️  Executing Lula OSCAL validation..."
+	lula validate -f oscal-il5.yaml -o assessment-results.yaml
 	@echo "📊 Parsing OSCAL findings using Go Exporter..."
-	./bin/compliance_exporter il5-results.json
+	./bin/compliance_exporter assessment-results.yaml
 
 go-build: ## Build Golang OSCAL compliance exporter binary
 	@echo "🐹 Building Go compliance exporter CLI..."
 	mkdir -p bin
-	go build -o bin/compliance_exporter src/compliance_exporter/main.go
+	cd src/compliance_exporter && go build -o ../../bin/compliance_exporter main.go
 
 clean: ## Clean up local build artifacts and cache
 	@echo "🧹 Cleaning up artifacts..."
-	rm -rf bin/ zarf-package-*.tar.zst il5-results.json docs/artifacts/
+	rm -rf bin/ zarf-package-*.tar.zst il5-results.yaml assessment-results.yaml docs/artifacts/
