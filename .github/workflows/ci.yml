@@ -2,13 +2,13 @@ name: CI & Compliance Validation Workflow
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, phase* ]
   pull_request:
     branches: [ main ]
 
 jobs:
   validate:
-    name: Terraform, Helm, Python & Go Validation
+    name: OpenTofu, Helm, Python & Go Validation
     runs-on: ubuntu-latest
 
     steps:
@@ -25,22 +25,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: 1.6.0
+          tofu-version: '1.8.2'
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
           version: 'v3.13.0'
 
-      - name: Validate Terraform Syntax & Format
+      - name: Validate OpenTofu Syntax & Format
         run: |
           for env in terraform/environments/*; do
             if [ -d "$env" ]; then
-              echo "==> Validating $env"
-              (cd "$env" && terraform fmt -check && terraform init -backend=false && terraform validate)
+              echo "==> Validating $env with OpenTofu"
+              (cd "$env" && tofu fmt -check && tofu init -backend=false && tofu validate)
             fi
           done
 
