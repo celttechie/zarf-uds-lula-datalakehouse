@@ -11,6 +11,9 @@
 zarf-sbom/
 uds-sbom/
 .zarf-cache/
+*assessment-results*.yaml
+*results*.yaml
+*results*.json
 
 # Python
 __pycache__/
