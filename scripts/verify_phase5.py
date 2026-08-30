@@ -25,7 +25,7 @@ def main():
 
     # 1. Build Go Compliance Exporter
     print(" -> 🐹 Step 1: Building Go Compliance Exporter CLI...")
-    rc, stdout, stderr = run_cmd("mkdir -p bin && cd src/compliance_exporter && go build -o ../../bin/compliance_exporter main.go")
+    rc, stdout, stderr = run_cmd("mkdir -p bin && go build -o bin/compliance_exporter src/compliance_exporter/main.go")
     if rc != 0:
         print(f"❌ Failed to build Go exporter: {stderr}")
         sys.exit(1)

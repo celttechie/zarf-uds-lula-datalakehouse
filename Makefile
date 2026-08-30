@@ -44,7 +44,7 @@ audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go export
 go-build: ## Build Golang OSCAL compliance exporter binary
 	@echo "🐹 Building Go compliance exporter CLI..."
 	mkdir -p bin
-	cd src/compliance_exporter && go build -o ../../bin/compliance_exporter main.go
+	go build -o bin/compliance_exporter src/compliance_exporter/main.go
 
 clean: ## Clean up local build artifacts and cache
 	@echo "🧹 Cleaning up artifacts..."
