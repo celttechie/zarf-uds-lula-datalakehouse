@@ -1,81 +1,234 @@
 component-definition:
-  uuid: 7b1d9888-5524-44f0-adf3-2606979d46e0
+  uuid: 876dc963-806c-4eb3-b538-af445a28e334
   metadata:
     title: "DoD IL5 Medallion Data Lakehouse Security Component Definition"
-    last-modified: "2026-08-29T17:00:00Z"
+    last-modified: "2026-08-30T11:00:00Z"
     version: "1.0.0"
     oscal-version: "1.1.2"
     parties:
-      - uuid: 3f566110-a09e-45e9-909c-18f0a5e712b0
+      - uuid: 5004e02c-16a6-4951-a040-0253734dfbc3
         type: organization
         name: "Defense Unicorns & Lakehouse Engineering Team"
   components:
-    - uuid: d46ebb9f-e6a1-4a76-9e9e-448a4455fe05
+    - uuid: a63b12f1-821f-4f37-a124-37aaf4b62993
       type: software
       title: "data-lakehouse-medallion"
       description: "Air-gapped Medallion Data Lakehouse with MinIO S3, DuckDB Parquet Engine, and PostgreSQL Gold Warehouse."
       purpose: "Ingestion, transformation, and analytical serving of mission-critical telemetry under DoD IL5 requirements."
       control-implementations:
-        - uuid: 0434b7a3-6e40-494e-81c2-a8907704f3ce
+        - uuid: 8ffc80d0-c303-42be-82cd-f6d9170e54b2
           source: "https://github.com/usnistgov/oscal-content/blob/master/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json"
           description: "NIST SP 800-53 Rev 5 Controls for DoD Impact Level 5 Continuous Authorization"
           implemented-requirements:
-            - uuid: 9c70e881-5b0a-4cc9-9655-f4c036c39baa
+            - uuid: 268f0c24-059f-4859-a683-8cf58db786de
               control-id: ac-3
               description: "Access Enforcement - Containers must enforce least privilege by running as non-root with dropped Linux capabilities."
               links:
-                - href: "#ac-3-validation"
-                  rel: "lula"
+                - href: "#69684fe0-7dd2-4c5f-a69f-b1500bdde487"
+                  rel: lula
 
-            - uuid: 27453a7f-cf09-4416-93ef-851884370cb7
+            - uuid: 717e5803-06f0-420d-b538-c2235929cebc
               control-id: ac-4
               description: "Information Flow Enforcement - Intra-cluster traffic must be restricted and authenticated via Istio Service Mesh in STRICT mTLS mode."
               links:
-                - href: "#ac-4-validation"
-                  rel: "lula"
+                - href: "#a5b41dc0-64f9-4ebd-812e-ac90acc989d8"
+                  rel: lula
 
-            - uuid: dc3e594e-ffcf-4319-8265-e8bddbece419
+            - uuid: 15a09cf5-4558-4f9f-b938-6b29a2816943
               control-id: ia-2
               description: "Identification and Authentication - Workload identities must use SPIFFE cryptographically verifiable x509 certificates."
+              links:
+                - href: "#4f946b7c-c502-42d2-944b-06f94ad7c68e"
+                  rel: lula
 
-            - uuid: 3975cec1-5e06-45d5-ad8f-fd57a8501235
+            - uuid: 6283a611-60ae-4634-bfef-0c312bfce223
               control-id: sc-8
               description: "Transmission Confidentiality and Integrity - Data in transit across pods must use TLS 1.3 wire encryption."
               links:
-                - href: "#sc-8-validation"
-                  rel: "lula"
+                - href: "#d3a7aab3-3291-478f-b709-76c46e0bc56f"
+                  rel: lula
 
-            - uuid: 1c88a4e9-07a5-4300-999d-7d5279229710
+            - uuid: ca8dcac9-0264-4c72-b942-8222f85c7aca
               control-id: sc-13
               description: "Cryptographic Protection - Columnar data files must be protected with modern checksums and Snappy compression."
+              links:
+                - href: "#d921d32d-af00-4eda-95a4-fa0ca18e531f"
+                  rel: lula
 
-            - uuid: 7e36f396-03c2-466d-b9ff-1934c34fa4ae
+            - uuid: 2469dfe7-840f-4305-acb3-ae52257f0c68
               control-id: sc-28
               description: "Protection of Information at Rest - Object storage and database volumes must be isolated on dedicated filesystems."
+              links:
+                - href: "#30034fa3-32aa-43f7-b828-5a4bd4699e2e"
+                  rel: lula
 
-            - uuid: 970b81fd-28ec-4eed-9004-347741e97860
+            - uuid: 3e2cb20c-6ee2-4ca1-aa63-62db4f160206
               control-id: si-4
               description: "Information System Monitoring - Pods and database metrics must be observable via structured logs and health endpoints."
+              links:
+                - href: "#cedb9071-714d-487d-bb42-ae727f3dbf6f"
+                  rel: lula
+
   back-matter:
     resources:
-      - uuid: 4d0fe157-37fb-414e-a87f-8907a8751926
-        title: "ac-3 non-root execution policy"
-        rlinks:
-          - href: "#ac-3-validation"
-            media-type: "application/lula"
-        remarks: |
+      - uuid: 69684fe0-7dd2-4c5f-a69f-b1500bdde487
+        description: >-
           domain:
             type: kubernetes
             kubernetes-spec:
               resources:
-                - group: ""
-                  version: v1
-                  resource: pods
-                  namespaces: [datalakehouse]
+                - name: livepods
+                  resource-rule:
+                    version: v1
+                    resource: pods
+                    namespaces: [datalakehouse]
           provider:
             type: opa
             opa-spec:
               rego: |
                 package validate
-                import rego.v1
-                default validate = true
+
+                import future.keywords.every
+
+                validate {
+                  count(input.livepods) > 0
+                  every pod in input.livepods {
+                    pod.spec.securityContext.runAsNonRoot == true
+                  }
+                }
+
+      - uuid: a5b41dc0-64f9-4ebd-812e-ac90acc989d8
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livesvc
+                  resource-rule:
+                    version: v1
+                    resource: services
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                validate {
+                  count(input.livesvc) >= 2
+                }
+
+      - uuid: 4f946b7c-c502-42d2-944b-06f94ad7c68e
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livepods
+                  resource-rule:
+                    version: v1
+                    resource: pods
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                validate {
+                  count(input.livepods) > 0
+                }
+
+      - uuid: d3a7aab3-3291-478f-b709-76c46e0bc56f
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livesvc
+                  resource-rule:
+                    version: v1
+                    resource: services
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                validate {
+                  count(input.livesvc) > 0
+                }
+
+      - uuid: d921d32d-af00-4eda-95a4-fa0ca18e531f
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livepods
+                  resource-rule:
+                    version: v1
+                    resource: pods
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                validate {
+                  count(input.livepods) > 0
+                }
+
+      - uuid: 30034fa3-32aa-43f7-b828-5a4bd4699e2e
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livepods
+                  resource-rule:
+                    version: v1
+                    resource: pods
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                import future.keywords.every
+
+                validate {
+                  count(input.livepods) > 0
+                  every pod in input.livepods {
+                    count(pod.spec.volumes) > 0
+                  }
+                }
+
+      - uuid: cedb9071-714d-487d-bb42-ae727f3dbf6f
+        description: >-
+          domain:
+            type: kubernetes
+            kubernetes-spec:
+              resources:
+                - name: livepods
+                  resource-rule:
+                    version: v1
+                    resource: pods
+                    namespaces: [datalakehouse]
+          provider:
+            type: opa
+            opa-spec:
+              rego: |
+                package validate
+
+                import future.keywords.every
+
+                validate {
+                  count(input.livepods) > 0
+                  every pod in input.livepods {
+                    pod.status.phase != "Unknown"
+                  }
+                }

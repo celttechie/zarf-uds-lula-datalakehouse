@@ -9,7 +9,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// AssessmentResults represents standard Lula / OSCAL assessment output
 type AssessmentResults struct {
 	AssessmentResults struct {
 		Metadata struct {
@@ -26,7 +25,8 @@ type AssessmentResults struct {
 				Target struct {
 					TargetID string `yaml:"target-id"`
 					Status   struct {
-						State string `yaml:"state"`
+						State  string `yaml:"state"`
+						Reason string `yaml:"reason"`
 					} `yaml:"status"`
 				} `yaml:"target"`
 				Description string `yaml:"description"`
@@ -36,7 +36,6 @@ type AssessmentResults struct {
 	} `yaml:"assessment-results"`
 }
 
-// ControlSummary provides tabular audit stats
 type ControlSummary struct {
 	ControlID   string
 	Domain      string
@@ -85,18 +84,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Fallback controls if parsing specific findings
 	controlList := []string{"ac-3", "ac-4", "ia-2", "sc-8", "sc-13", "sc-28", "si-4"}
 	findingMap := make(map[string]string)
 
-	for _, res := range results.AssessmentResults.Results {
-		for _, f := range res.Findings {
+	// Check findings from the latest result set in the OSCAL document
+	if len(results.AssessmentResults.Results) > 0 {
+		latestResult := results.AssessmentResults.Results[0]
+		for _, f := range latestResult.Findings {
 			cid := strings.ToLower(f.Target.TargetID)
-			state := f.Target.Status.State
-			if state == "" {
-				state = "satisfied"
+			state := strings.ToLower(f.Target.Status.State)
+			if state != "" {
+				findingMap[cid] = state
 			}
-			findingMap[cid] = state
 		}
 	}
 
@@ -105,9 +104,13 @@ func main() {
 
 	for _, cid := range controlList {
 		status := findingMap[cid]
-		if status == "" || status == "satisfied" || status == "pass" {
+		isSatisfied := (status == "satisfied" || status == "pass")
+
+		if isSatisfied {
 			status = "SATISFIED"
 			satisfiedCount++
+		} else if status == "" {
+			status = "NOT-EVALUATED"
 		} else {
 			status = strings.ToUpper(status)
 		}
@@ -124,7 +127,6 @@ func main() {
 
 	complianceScore := (float64(satisfiedCount) / float64(len(controlList))) * 100.0
 
-	// Output terminal report
 	fmt.Println("==========================================================================================")
 	fmt.Println("🛡️  DoD IMPACT LEVEL 5 (IL5) CONTINUOUS COMPLIANCE AUDIT MATRIX")
 	fmt.Println("==========================================================================================")
@@ -133,7 +135,7 @@ func main() {
 	fmt.Printf(" 🎯 Target Framework: NIST SP 800-53 Rev 5 (DoD IL5 Continuous ATO)\n")
 	fmt.Printf(" 📊 Compliance Score:  %.1f%% (%d/%d Controls Satisfied)\n", complianceScore, satisfiedCount, len(controlList))
 	fmt.Println("------------------------------------------------------------------------------------------")
-	fmt.Printf(" %-10s | %-22s | %-38s | %-10s\n", "CONTROL", "DOMAIN", "SECURITY REQUIREMENT", "STATUS")
+	fmt.Printf(" %-10s | %-22s | %-44s | %-10s\n", "CONTROL", "DOMAIN", "SECURITY REQUIREMENT", "STATUS")
 	fmt.Println("------------------------------------------------------------------------------------------")
 
 	for _, s := range summaries {
@@ -141,7 +143,7 @@ func main() {
 		if s.Status != "SATISFIED" {
 			statusIcon = "🟡"
 		}
-		fmt.Printf(" %-10s | %-22s | %-38s | %s %-8s\n", s.ControlID, s.Domain, s.Title, statusIcon, s.Status)
+		fmt.Printf(" %-10s | %-22s | %-44s | %s %-8s\n", s.ControlID, s.Domain, s.Title, statusIcon, s.Status)
 	}
 
 	fmt.Println("==========================================================================================")
