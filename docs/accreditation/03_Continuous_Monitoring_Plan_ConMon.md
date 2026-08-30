@@ -1,6 +1,6 @@
 # Continuous Monitoring Plan (ConMon): DoD IL5 Medallion Data Lakehouse
 
-**Effective Date:** 2026-08-30 11:49:22Z  
+**Effective Date:** 2026-08-30 16:21:49Z  
 **Review Frequency:** Continuous (Per-Commit Automated CI/CD & Weekly Scheduled Cluster Scans)  
 **Governance Framework:** NIST SP 800-137 / DoD Continuous Authorization to Operate (cATO)  
 
