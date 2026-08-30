@@ -1,7 +1,20 @@
-.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 package deploy audit go-build clean
+.PHONY: help ci dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
 
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+ci: test go-build ## Run full local CI/CD pre-flight simulation (OpenTofu, Helm, Tests, Go)
+	@echo "==> 1. Validating OpenTofu Environments..."
+	@for env in terraform/environments/*; do \
+		if [ -d "$$env" ]; then \
+			(cd "$$env" && tofu fmt -check && tofu init -backend=false && tofu validate) || exit 1; \
+		fi \
+	done
+	@echo "==> 2. Linting Helm Charts..."
+	@helm lint k8s/charts/datalakehouse
+	@echo "==> 3. Verifying Go Exporter Binary..."
+	@test -f ./bin/compliance_exporter
+	@echo "✅ All CI/CD checks passed successfully!"
 
 inspect: ## Run interactive Medallion data lakehouse inspection and print layer outputs
 	@echo "🔍 Running interactive data pipeline inspection..."
@@ -26,6 +39,14 @@ verify-phase4: ## Run automated Phase 4 UDS Bundle and Service Mesh verification
 verify-phase5: ## Run automated Phase 5 Lula OSCAL compliance verification and Go exporter
 	@echo "🛡️  Running automated Phase 5 Lula OSCAL compliance verification..."
 	python3 scripts/verify_phase5.py
+
+verify-phase6: ## Run automated Phase 6 accreditation artifact generation and verification
+	@echo "📜 Running automated Phase 6 accreditation artifact verification..."
+	python3 scripts/verify_phase6.py
+
+ato-package: ## Generate complete DoD IL5 ATO Accreditation Package (SSP, SAR, ConMon, POAM)
+	@echo "📜 Generating complete DoD IL5 ATO Accreditation Package..."
+	python3 scripts/generate_ato_package.py
 
 package: ## Build Zarf air-gapped package (.tar.zst)
 	@echo "📦 Building Zarf package..."
