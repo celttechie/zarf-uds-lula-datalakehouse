@@ -58,9 +58,13 @@ deploy: ## Deploy UDS Bundle into target K8s cluster
 
 audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go exporter
 	@echo "🛡️  Executing Lula OSCAL validation..."
+	@if [ -z "$$KUBECONFIG" ] && [ -f "$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml" ]; then \
+		export KUBECONFIG="$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml"; \
+	fi; \
+	rm -f assessment-results.yaml; \
 	lula validate -f oscal-il5.yaml -o assessment-results.yaml
 	@echo "📊 Parsing OSCAL findings using Go Exporter..."
-	./bin/compliance_exporter assessment-results.yaml
+	@./bin/compliance_exporter assessment-results.yaml
 
 go-build: ## Build Golang OSCAL compliance exporter binary
 	@echo "🐹 Building Go compliance exporter CLI..."
