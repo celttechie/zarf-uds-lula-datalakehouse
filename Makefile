@@ -1,4 +1,4 @@
-.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 package deploy audit go-build clean
+.PHONY: help dev-sandbox dev-cluster dev-destroy-all verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
 
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,14 @@ verify-phase4: ## Run automated Phase 4 UDS Bundle and Service Mesh verification
 verify-phase5: ## Run automated Phase 5 Lula OSCAL compliance verification and Go exporter
 	@echo "🛡️  Running automated Phase 5 Lula OSCAL compliance verification..."
 	python3 scripts/verify_phase5.py
+
+verify-phase6: ## Run automated Phase 6 accreditation artifact generation and verification
+	@echo "📜 Running automated Phase 6 accreditation artifact verification..."
+	python3 scripts/verify_phase6.py
+
+ato-package: ## Generate complete DoD IL5 ATO Accreditation Package (SSP, SAR, ConMon, POAM)
+	@echo "📜 Generating complete DoD IL5 ATO Accreditation Package..."
+	python3 scripts/generate_ato_package.py
 
 package: ## Build Zarf air-gapped package (.tar.zst)
 	@echo "📦 Building Zarf package..."
