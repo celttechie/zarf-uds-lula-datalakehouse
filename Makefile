@@ -48,13 +48,29 @@ ato-package: ## Generate complete DoD IL5 ATO Accreditation Package (SSP, SAR, C
 	@echo "📜 Generating complete DoD IL5 ATO Accreditation Package..."
 	python3 scripts/generate_ato_package.py
 
-package: ## Build Zarf air-gapped package (.tar.zst)
+package: zarf-package ## Build Zarf air-gapped package (.tar.zst)
+
+zarf-package: ## Build Zarf air-gapped package (.tar.zst)
 	@echo "📦 Building Zarf package..."
 	zarf package create --confirm
 
-deploy: ## Deploy UDS Bundle into target K8s cluster
-	@echo "🚀 Deploying UDS Bundle & Core infrastructure..."
+zarf-init: ## Initialize Zarf internal registry on target Kubernetes cluster
+	@echo "⚙️  Initializing Zarf on target Kubernetes cluster..."
+	zarf init --confirm
+
+zarf-deploy: ## Deploy Zarf package to target Kubernetes cluster
+	@echo "🚀 Deploying Zarf package to target Kubernetes cluster..."
+	@bash scripts/deploy_zarf_package.sh
+
+bundle-create: ## Create UDS bundle archive (.tar.zst)
+	@echo "📦 Creating UDS Bundle..."
+	uds create . --confirm
+
+bundle-deploy: ## Deploy UDS bundle to target Kubernetes cluster
+	@echo "🚀 Deploying UDS Bundle..."
 	uds deploy --confirm
+
+deploy: zarf-deploy ## Deploy Data Lakehouse workloads into target K8s cluster
 
 audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go exporter
 	@echo "🛡️  Executing Lula OSCAL validation..."

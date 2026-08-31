@@ -47,15 +47,24 @@ terraform init && terraform apply
 export KUBECONFIG=/path/to/target/kubeconfig
 
 # 2. Build Zarf Air-Gapped Package (Phase 3)
-make package
+make zarf-package
 # or: zarf package create --confirm
+# Generates: zarf-package-il5-data-lakehouse-amd64-0.3.0.tar.zst (with Syft SBOMs)
 
-# 3. Create & Deploy UDS Bundle (Phase 4)
+# 3. Initialize Zarf Internal Registry in Target Cluster (if not yet initialized)
+make zarf-init
+# or: zarf init --confirm
+
+# 4. Deploy Zarf Air-Gapped Data Lakehouse Package (MinIO, Postgres, ETL Job)
+make zarf-deploy
+# or: zarf package deploy zarf-package-il5-data-lakehouse-amd64-0.3.0.tar.zst --confirm
+
+# 5. Create & Deploy UDS Bundle (Phase 4)
 make bundle-create
 make bundle-deploy
 # or: uds deploy uds-bundle-il5-data-lakehouse-bundle-amd64-0.4.0.tar.zst --confirm
 
-# 4. Audit IL4/IL5 Compliance & Run Go Exporter (Phase 5)
+# 6. Audit IL4/IL5 Compliance & Run Go Exporter (Phase 5)
 make audit
 ```
 

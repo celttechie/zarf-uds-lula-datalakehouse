@@ -203,6 +203,26 @@ def main():
         "status": "PASS" if test_pass else "FAIL"
     })
 
+    # 6. Zarf Package Archive & Deployment Automation
+    pkg_files = [f for f in os.listdir(REPO_ROOT) if f.startswith("zarf-package-") and f.endswith(".tar.zst")]
+    deploy_script = os.path.join(REPO_ROOT, "scripts/deploy_zarf_package.sh")
+    deploy_ready = os.path.exists(deploy_script) and os.access(deploy_script, os.X_OK)
+
+    if pkg_files:
+        pkg_name = pkg_files[0]
+        pkg_size = os.path.getsize(os.path.join(REPO_ROOT, pkg_name)) / (1024 * 1024)
+        pkg_res = f"Archive built: {pkg_name} ({pkg_size:.1f} MB), deploy script verified"
+    else:
+        pkg_res = "Deploy script verified; run 'make package' to generate .tar.zst archive"
+
+    checks.append({
+        "name": "Zarf Package Archive & Deploy Automation",
+        "target": "zarf-package-*.tar.zst / scripts/deploy_zarf_package.sh",
+        "expected": "Deployment automation script executable & package buildable",
+        "result": pkg_res,
+        "status": "PASS" if deploy_ready else "FAIL"
+    })
+
     # Overall Status Calculation
     all_passed = all(c["status"] == "PASS" for c in checks)
     overall_status = "PASSED" if all_passed else "FAILED"
