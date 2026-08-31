@@ -5,7 +5,7 @@
 **System Version:** 1.0.0  
 **Security Categorization:** DoD Impact Level 5 (IL5) / NIST SP 800-53 Rev 5 High-Watermark  
 **Authorization Boundary:** Air-Gapped Kubernetes Cluster (Dell Precision T5600 Homelab & Production Target)  
-**Publication Date:** 2026-08-30 16:21:49Z  
+**Publication Date:** 2026-08-31 12:05:41Z  
 
 ---
 

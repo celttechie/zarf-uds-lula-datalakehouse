@@ -46,7 +46,6 @@ resource "libvirt_domain" "cluster_node" {
   name       = var.cluster_node_name
   memory     = var.vm_memory
   vcpu       = var.vm_vcpu
-  qemu_agent = true
 
   cpu {
     mode = "host-passthrough"
