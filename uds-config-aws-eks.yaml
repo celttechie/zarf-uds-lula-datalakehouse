@@ -1,0 +1,32 @@
+# UDS Bundle Runtime & Deployment Configuration for AWS EKS (Option 3)
+# Tailored for AWS Managed EKS with AWS EBS CSI gp3 storage class
+bundle:
+  create:
+    set:
+      architecture: amd64
+      source: .
+      output: .
+  deploy:
+    set:
+      # Kubernetes namespace for workload deployment
+      namespace: datalakehouse
+      # Ingress domain configuration
+      domain: datalake.aws-eks.local
+      # Storage class definition (AWS EBS CSI Driver gp3)
+      storage_class: gp3
+      # Storage volume persistence & retention policy
+      storage_retention: true
+      # Target DoD Impact Level security baseline
+      security_level: IL5
+      # Istio Service Mesh Zero-Trust configuration
+      mesh:
+        mtls_mode: STRICT
+        istio_injection: enabled
+        authorization_policy: strict-medallion-ingress
+        peer_authentication: default
+      # UDS Core service integration parameters
+      core:
+        pepr_enforcement: strict
+        keycloak_realm: datalakehouse-realm
+        istio_gateway: uds-core-ingressgateway
+        monitoring_enabled: true

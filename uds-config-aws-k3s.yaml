@@ -1,0 +1,32 @@
+# UDS Bundle Runtime & Deployment Configuration for AWS EC2 Spot + K3s (Option 2)
+# Tailored for single-node ephemeral cloud sandbox with local-path storage
+bundle:
+  create:
+    set:
+      architecture: amd64
+      source: .
+      output: .
+  deploy:
+    set:
+      # Kubernetes namespace for workload deployment
+      namespace: datalakehouse
+      # Ingress domain configuration
+      domain: datalake.aws-k3s.local
+      # Storage class definition (local-path on single node EC2)
+      storage_class: local-path
+      # Storage volume persistence & retention policy
+      storage_retention: true
+      # Target DoD Impact Level security baseline
+      security_level: IL5
+      # Istio Service Mesh Zero-Trust configuration
+      mesh:
+        mtls_mode: STRICT
+        istio_injection: enabled
+        authorization_policy: strict-medallion-ingress
+        peer_authentication: default
+      # UDS Core service integration parameters
+      core:
+        pepr_enforcement: strict
+        keycloak_realm: datalakehouse-realm
+        istio_gateway: uds-core-ingressgateway
+        monitoring_enabled: true
