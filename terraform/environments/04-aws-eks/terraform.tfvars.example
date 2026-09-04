@@ -1,0 +1,11 @@
+aws_region         = "us-east-1"
+cluster_name       = "datalakehouse-eks"
+kubernetes_version = "1.30"
+instance_types     = ["t3.xlarge", "m6i.xlarge"]
+disk_size          = 50
+desired_node_count = 2
+min_node_count     = 1
+max_node_count     = 3
+allowed_cidr_blocks = [
+  "0.0.0.0/0"
+]
