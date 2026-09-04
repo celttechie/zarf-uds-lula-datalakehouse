@@ -13,12 +13,16 @@ This document outlines the **6-Phase Implementation Plan** for building, deployi
 ```mermaid
 flowchart TD
     subgraph TargetEnv ["Target Infrastructure Options"]
-        OPT_A[Option A: Terraform 01-nested-sandbox & 02-k8s-cluster]
+        OPT_A[Option A: Terraform 01-nested-sandbox & 02-k8s-cluster - Local KVM]
         OPT_B[Option B: Any Existing Server / K8s Cluster]
+        OPT_C[Option C: Terraform 03-aws-ec2-k3s - Spot EC2 Sandbox]
+        OPT_D[Option D: Terraform 04-aws-eks - Managed EKS Cluster]
     end
 
     subgraph P1 ["Phase 1 (Optional): Terraform Infrastructure"]
-        OPT_A -->|terraform apply| K3S_A[Local KVM Sandbox Cluster]
+        OPT_A -->|tofu apply| K3S_A[Local KVM Sandbox Cluster]
+        OPT_C -->|tofu apply| K3S_C[AWS EC2 K3s Instance]
+        OPT_D -->|tofu apply| EKS_D[AWS EKS Managed Cluster]
     end
 
     subgraph P2 ["Phase 2: Data Lakehouse & ETL Core"]
@@ -36,6 +40,8 @@ flowchart TD
         TAR --> UDS[UDS Bundle Orchestrator]
         UDS -->|uds deploy| K3S[Target Cluster / Server]
         K3S_A -.-> K3S
+        K3S_C -.-> K3S
+        EKS_D -.-> K3S
         OPT_B -.-> K3S
     end
 
@@ -76,7 +82,15 @@ ssh -i ~/.ssh/id_ed25519 brian@<sandbox-vm-ip> 'hostname && virsh list --all'
 # 3. Verify K3s cluster node status inside Layer 1 Sandbox
 ssh brian@<sandbox-vm-ip> 'kubectl get nodes -o wide'
 ```
-**Success Criteria:** Stage 1 VM state is `running`, SSH connects securely using generated host key without host key warning prompts, and internal KVM/Libvirt inside Sandbox is active.
+### Cloud Infrastructure Provisioning (AWS Targets)
+
+#### Option C: Ephemeral AWS EC2 Spot + K3s (`03-aws-ec2-k3s`)
+- **Cost**: ~$0.04/hr ($0.00 control plane fee)
+- **Tasks**: Configure `terraform/environments/03-aws-ec2-k3s`, run `make aws-k3s-up`, deploy bundle with `uds-config-aws-k3s.yaml`, and tear down with `make aws-k3s-down`.
+
+#### Option D: Ephemeral AWS Managed EKS (`04-aws-eks`)
+- **Cost**: ~$0.10/hr EKS control plane + Spot node group
+- **Tasks**: Configure `terraform/environments/04-aws-eks`, run `make aws-eks-up`, deploy bundle with `uds-config-aws-eks.yaml`, validate with `lula evaluate`, and tear down with `make aws-eks-down`.
 
 ---
 

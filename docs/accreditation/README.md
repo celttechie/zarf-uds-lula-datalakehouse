@@ -3,7 +3,7 @@
 **System Name:** Medallion Data Lakehouse  
 **Classification:** UNCLASSIFIED // DoD Impact Level 5 (IL5) Data Processing  
 **Accreditation Framework:** NIST SP 800-53 Rev 5 / Risk Management Framework (RMF)  
-**Package Generation Date:** 2026-08-31 21:16:50Z  
+**Package Generation Date:** 2026-09-04 13:45:26Z  
 
 ---
 
