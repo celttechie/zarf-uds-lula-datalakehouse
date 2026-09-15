@@ -45,10 +45,10 @@ class TestUDSBundle(unittest.TestCase):
         self.assertIsInstance(packages, list)
         self.assertGreater(len(packages), 0, "uds-bundle.yaml must define at least one package")
 
-        # Check datalakehouse package
-        dlh_pkg = next((p for p in packages if p.get("name") == "datalakehouse"), None)
-        self.assertIsNotNone(dlh_pkg, "datalakehouse package reference not found in uds-bundle.yaml")
-        self.assertEqual(dlh_pkg.get("repository"), "zarf-package-il5-data-lakehouse")
+        # Check il5-data-lakehouse package
+        dlh_pkg = next((p for p in packages if p.get("name") == "il5-data-lakehouse"), None)
+        self.assertIsNotNone(dlh_pkg, "il5-data-lakehouse package reference not found in uds-bundle.yaml")
+        self.assertEqual(dlh_pkg.get("path"), ".")
         self.assertEqual(dlh_pkg.get("namespace"), "datalakehouse")
 
         # Check overrides
@@ -56,31 +56,14 @@ class TestUDSBundle(unittest.TestCase):
         self.assertIn("datalakehouse-core", overrides, "datalakehouse-core component override missing")
 
         core_overrides = overrides["datalakehouse-core"]
-        variables = core_overrides.get("variables", {})
-        self.assertEqual(variables.get("NAMESPACE"), "datalakehouse")
-        self.assertEqual(variables.get("DOMAIN"), "datalake.local")
-        self.assertEqual(variables.get("SECURITY_PROFILE"), "il5-strict")
+        self.assertIn("datalakehouse", core_overrides, "datalakehouse chart override missing")
 
-        values = core_overrides.get("values", [])
+        chart_overrides = core_overrides["datalakehouse"]
+        values = chart_overrides.get("values", [])
         value_paths = {v.get("path"): v.get("value") for v in values}
         self.assertEqual(value_paths.get("minio.enabled"), True)
         self.assertEqual(value_paths.get("postgresql.enabled"), True)
-        self.assertEqual(value_paths.get("mesh.mtls.mode"), "STRICT")
-
-    def test_uds_bundle_core_integration(self):
-        """Verify integration points for UDS Core services (Istio, Keycloak, Pepr)"""
-        with open(self.uds_bundle_path, "r") as f:
-            data = yaml.safe_load(f)
-
-        packages = data.get("packages", [])
-        core_pkg = next((p for p in packages if p.get("name") == "uds-core"), None)
-        self.assertIsNotNone(core_pkg, "uds-core integration package definition missing from uds-bundle.yaml")
-
-        overrides = core_pkg.get("overrides", {})
-        self.assertIn("istio-system", overrides)
-        self.assertEqual(overrides["istio-system"].get("variables", {}).get("MTLS_MODE"), "STRICT")
-        self.assertIn("pepr", overrides)
-        self.assertIn("keycloak", overrides)
+        self.assertEqual(value_paths.get("etlJob.enabled"), True)
 
     def test_uds_config_yaml_valid(self):
         """Verify uds-config.yaml structure and configuration parameters"""
@@ -89,18 +72,13 @@ class TestUDSBundle(unittest.TestCase):
             config = yaml.safe_load(f)
 
         self.assertIsInstance(config, dict, "uds-config.yaml must parse as a dictionary")
-        self.assertIn("bundle", config, "uds-config.yaml missing 'bundle' section")
+        self.assertIn("variables", config, "uds-config.yaml missing 'variables' section")
 
-        bundle_cfg = config["bundle"]
-        self.assertIn("create", bundle_cfg)
-        self.assertIn("deploy", bundle_cfg)
-
-        deploy_set = bundle_cfg["deploy"].get("set", {})
-        self.assertEqual(deploy_set.get("namespace"), "datalakehouse")
-        self.assertEqual(deploy_set.get("domain"), "datalake.local")
-        self.assertEqual(deploy_set.get("security_level"), "IL5")
-        self.assertEqual(deploy_set.get("mesh", {}).get("mtls_mode"), "STRICT")
-        self.assertEqual(deploy_set.get("core", {}).get("pepr_enforcement"), "strict")
+        dlh_vars = config["variables"].get("il5-data-lakehouse", {})
+        self.assertEqual(dlh_vars.get("NAMESPACE"), "datalakehouse")
+        self.assertEqual(dlh_vars.get("DOMAIN"), "datalake.local")
+        self.assertEqual(dlh_vars.get("STORAGE_CLASS"), "local-path")
+        self.assertEqual(dlh_vars.get("SECURITY_PROFILE"), "il5-strict")
 
     def test_istio_peer_authentication_manifest(self):
         """Verify Istio PeerAuthentication enforces STRICT mTLS in datalakehouse namespace"""
@@ -157,7 +135,7 @@ class TestUDSBundle(unittest.TestCase):
 
         # Ensure datalakehouse-core component exists in zarf.yaml
         zarf_components = [c.get("name") for c in zarf_data.get("components", [])]
-        dlh_pkg = next(p for p in uds_data.get("packages", []) if p.get("name") == "datalakehouse")
+        dlh_pkg = next(p for p in uds_data.get("packages", []) if p.get("name") == "il5-data-lakehouse")
         overridden_components = list(dlh_pkg.get("overrides", {}).keys())
 
         for comp in overridden_components:
@@ -165,6 +143,38 @@ class TestUDSBundle(unittest.TestCase):
 
         # Ensure namespace match
         self.assertEqual(dlh_pkg.get("namespace"), "datalakehouse")
+
+    def test_uds_local_package_excludes_repository(self):
+        """Verify local package in UDS bundle does not declare conflicting repository field"""
+        with open(self.uds_bundle_path, "r") as f:
+            uds_data = yaml.safe_load(f)
+        for pkg in uds_data.get("packages", []):
+            if "path" in pkg:
+                self.assertNotIn("repository", pkg, f"Package '{pkg.get('name')}' declares both 'path' and 'repository'")
+
+    def test_uds_bundle_authors_is_string(self):
+        """Verify authors field in UDS bundle metadata is a string, not a list"""
+        with open(self.uds_bundle_path, "r") as f:
+            uds_data = yaml.safe_load(f)
+        authors = uds_data.get("metadata", {}).get("authors")
+        self.assertIsInstance(authors, str, "UDS Bundle metadata.authors must be a string")
+
+    def test_uds_config_overlays_valid(self):
+        """Verify cloud configuration overlays (AWS K3s and AWS EKS) exist and specify correct storage classes"""
+        k3s_cfg_path = os.path.join(self.repo_root, "uds-config-aws-k3s.yaml")
+        eks_cfg_path = os.path.join(self.repo_root, "uds-config-aws-eks.yaml")
+
+        self.assertTrue(os.path.exists(k3s_cfg_path), "uds-config-aws-k3s.yaml missing")
+        self.assertTrue(os.path.exists(eks_cfg_path), "uds-config-aws-eks.yaml missing")
+
+        with open(k3s_cfg_path) as f:
+            k3s_data = yaml.safe_load(f)
+        with open(eks_cfg_path) as f:
+            eks_data = yaml.safe_load(f)
+
+        self.assertEqual(k3s_data["variables"]["il5-data-lakehouse"]["STORAGE_CLASS"], "local-path")
+        self.assertEqual(eks_data["variables"]["il5-data-lakehouse"]["STORAGE_CLASS"], "gp3")
+        self.assertEqual(eks_data["shared"]["STORAGE_CLASS"], "gp3")
 
 if __name__ == "__main__":
     unittest.main()

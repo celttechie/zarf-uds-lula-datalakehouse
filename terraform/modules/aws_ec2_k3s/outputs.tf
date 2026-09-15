@@ -1,16 +1,16 @@
 output "public_ip" {
-  description = "Public IPv4 address of the K3s Spot instance"
-  value       = aws_spot_instance_request.k3s_spot_node.public_ip
+  description = "Public IPv4 address of the K3s instance"
+  value       = aws_instance.k3s_node.public_ip
 }
 
 output "private_ip" {
-  description = "Private IPv4 address of the K3s Spot instance"
-  value       = aws_spot_instance_request.k3s_spot_node.private_ip
+  description = "Private IPv4 address of the K3s instance"
+  value       = aws_instance.k3s_node.private_ip
 }
 
 output "instance_id" {
-  description = "EC2 Instance ID of the provisioned Spot instance"
-  value       = aws_spot_instance_request.k3s_spot_node.spot_instance_id
+  description = "EC2 Instance ID of the provisioned instance"
+  value       = aws_instance.k3s_node.id
 }
 
 output "ssh_private_key" {
@@ -26,5 +26,5 @@ output "ssh_public_key" {
 
 output "ssh_command" {
   description = "SSH connection command using generated private key"
-  value       = "ssh -i id_ed25519 -o StrictHostKeyChecking=accept-new ubuntu@${aws_spot_instance_request.k3s_spot_node.public_ip}"
+  value       = "ssh -i id_ed25519 -o StrictHostKeyChecking=accept-new ubuntu@${aws_instance.k3s_node.public_ip}"
 }

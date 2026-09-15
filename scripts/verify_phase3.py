@@ -285,7 +285,7 @@ def main():
 ## 🛡️ DoD IL4/IL5 Air-Gap Security Compliance Checklist
 
 - [x] **100% Disconnected Air-Gap Delivery:** All Helm charts, manifests, and container image layers are bundled inside the immutable Zarf package archive.
-- [x] **Zero-Trust Image Pinning:** Strict immutable image tags are enforced across all containers (`minio/minio:RELEASE.2024-01-16T16-07-38Z`, `postgres:15-alpine`, `python:3.11-slim`), eliminating mutable tag risks.
+- [x] **Zero-Trust Image Pinning:** Strict immutable image tags are enforced across all containers (`quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z`, `postgres:15-alpine`, `python:3.11-slim`), eliminating mutable tag risks.
 - [x] **Non-Root Container Hardening:** Pod specifications mandate `runAsNonRoot: true`, `readOnlyRootFilesystem: false` (isolated `/data` volume), and capability dropping (`drop: [ALL]`).
 - [x] **Automated SBOM Generation:** Package structure is fully compatible with Zarf's built-in Syft/Grype Software Bill of Materials (SBOM) generator.
 - [x] **Post-Deploy Health Validation:** Declarative `onDeploy` actions execute automated readiness probes against cluster workloads upon package deployment.

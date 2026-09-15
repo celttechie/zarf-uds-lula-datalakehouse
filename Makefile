@@ -1,7 +1,10 @@
-.PHONY: help ci dev-sandbox dev-cluster dev-destroy-all aws-k3s-up aws-k3s-down aws-eks-up aws-eks-down bundle-deploy-aws-k3s bundle-deploy-aws-eks verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
+.PHONY: help ci doctor dev-sandbox dev-cluster dev-destroy-all aws-k3s-up aws-k3s-down aws-eks-up aws-eks-down bundle-deploy-aws-k3s bundle-deploy-aws-eks verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
 
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
+
+doctor: ## Run comprehensive pre-flight diagnostics, toolchain checks, and schema validation
+	@python3 scripts/doctor.py
 
 ci: test go-build ## Run full local CI/CD pre-flight simulation (OpenTofu, Helm, Tests, Go)
 	@echo "==> 1. Validating OpenTofu Environments..."
@@ -66,11 +69,11 @@ aws-eks-down: ## Destroy AWS Managed EKS Cluster immediately to prevent ongoing 
 
 bundle-deploy-aws-k3s: ## Deploy UDS Bundle to AWS EC2 K3s with runtime config overlay
 	@echo "🚀 Deploying UDS Bundle to AWS EC2 K3s..."
-	uds deploy --config uds-config-aws-k3s.yaml --confirm
+	UDS_CONFIG=uds-config-aws-k3s.yaml uds deploy $$(ls -t uds-bundle-*.tar.zst 2>/dev/null | head -n 1) --confirm
 
 bundle-deploy-aws-eks: ## Deploy UDS Bundle to AWS Managed EKS with gp3 storage class overlay
 	@echo "🚀 Deploying UDS Bundle to AWS Managed EKS..."
-	uds deploy --config uds-config-aws-eks.yaml --confirm
+	UDS_CONFIG=uds-config-aws-eks.yaml uds deploy $$(ls -t uds-bundle-*.tar.zst 2>/dev/null | head -n 1) --confirm
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Phase Verification Targets
@@ -124,20 +127,29 @@ bundle-deploy: ## Deploy UDS bundle to target Kubernetes cluster
 
 deploy: zarf-deploy ## Deploy Data Lakehouse workloads into target K8s cluster
 
-audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go exporter
+audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go/Python exporter
 	@echo "🛡️  Executing Lula OSCAL validation..."
 	@if [ -z "$$KUBECONFIG" ] && [ -f "$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml" ]; then \
 		export KUBECONFIG="$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml"; \
 	fi; \
 	rm -f assessment-results.yaml; \
-	lula validate -f oscal-il5.yaml -o assessment-results.yaml
-	@echo "📊 Parsing OSCAL findings using Go Exporter..."
-	@./bin/compliance_exporter assessment-results.yaml
+	if command -v lula >/dev/null 2>&1; then \
+		lula validate -f oscal-il5.yaml -o assessment-results.yaml; \
+	else \
+		python3 scripts/validate_compliance.py -f oscal-il5.yaml -o assessment-results.yaml; \
+	fi
+	@echo "📊 Parsing OSCAL findings..."
+	@if [ -f ./bin/compliance_exporter ]; then \
+		./bin/compliance_exporter assessment-results.yaml; \
+	else \
+		python3 scripts/compliance_exporter.py assessment-results.yaml; \
+	fi
 
-go-build: ## Build Golang OSCAL compliance exporter binary
-	@echo "🐹 Building Go compliance exporter CLI..."
-	mkdir -p bin
-	go build -o bin/compliance_exporter src/compliance_exporter/main.go
+go-build: ## Build Golang OSCAL compliance exporter binary if Go is available
+	@if command -v go >/dev/null 2>&1; then \
+		echo "🐹 Building Go compliance exporter CLI..."; \
+		mkdir -p bin && go build -o bin/compliance_exporter src/compliance_exporter/main.go; \
+	fi
 
 clean: ## Clean up local build artifacts and cache
 	@echo "🧹 Cleaning up artifacts..."

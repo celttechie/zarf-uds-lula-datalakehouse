@@ -25,6 +25,7 @@ module "eks_cluster" {
   allowed_cidr_blocks = var.allowed_cidr_blocks
   instance_types      = var.instance_types
   disk_size           = var.disk_size
+  capacity_type       = var.capacity_type
   desired_node_count  = var.desired_node_count
   min_node_count      = var.min_node_count
   max_node_count      = var.max_node_count

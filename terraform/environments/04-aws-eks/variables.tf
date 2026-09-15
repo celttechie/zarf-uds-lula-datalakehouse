@@ -40,6 +40,12 @@ variable "disk_size" {
   default     = 50
 }
 
+variable "capacity_type" {
+  description = "EKS node group capacity type: ON_DEMAND (default, avoids spot quota limits) or SPOT"
+  type        = string
+  default     = "ON_DEMAND"
+}
+
 variable "desired_node_count" {
   description = "Desired number of worker nodes"
   type        = number

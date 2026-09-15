@@ -19,6 +19,19 @@ if [[ "${TARGET}" == "k3s" ]]; then
   SSH_KEY="${ENV_DIR}/.terraform/id_ed25519"
   OUTPUT_KUBECONFIG="${REPO_ROOT}/.kube/config-aws-k3s.yaml"
 
+  echo "📥 Waiting for K3s to be ready on ubuntu@${PUBLIC_IP}..."
+  MAX_RETRIES=30
+  RETRY_COUNT=0
+  until ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "ubuntu@${PUBLIC_IP}" 'sudo test -f /etc/rancher/k3s/k3s.yaml' 2>/dev/null; do
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [[ ${RETRY_COUNT} -ge ${MAX_RETRIES} ]]; then
+      echo "❌ Timeout waiting for K3s installation on ${PUBLIC_IP}."
+      exit 1
+    fi
+    echo "   ⏳ Waiting for K3s bootstrap to complete (${RETRY_COUNT}/${MAX_RETRIES})..."
+    sleep 5
+  done
+
   echo "📥 Fetching K3s kubeconfig from ubuntu@${PUBLIC_IP}..."
   ssh -i "${SSH_KEY}" -o StrictHostKeyChecking=accept-new "ubuntu@${PUBLIC_IP}" 'sudo cat /etc/rancher/k3s/k3s.yaml' | \
     sed "s/127.0.0.1/${PUBLIC_IP}/g" > "${OUTPUT_KUBECONFIG}"
@@ -32,6 +45,12 @@ elif [[ "${TARGET}" == "eks" ]]; then
   ENV_DIR="${REPO_ROOT}/terraform/environments/04-aws-eks"
   if [[ ! -d "${ENV_DIR}/.terraform" ]]; then
     echo "❌ Error: Terraform environment at ${ENV_DIR} has not been applied."
+    exit 1
+  fi
+
+  if ! command -v aws &>/dev/null; then
+    echo "❌ Error: AWS CLI ('aws') is required to configure EKS kubeconfig."
+    echo "   Please install the AWS CLI or run the update-kubeconfig command manually."
     exit 1
   fi
 

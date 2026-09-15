@@ -1,8 +1,8 @@
 # Phase 6 Verification Report: Automated Accreditation Artifact Package
 
-**Execution Date:** 2026-08-31 14:50:11Z  
+**Execution Date:** 2026-09-15 20:15:05Z  
 **Accreditation Framework:** NIST SP 800-53 Rev 5 (DoD Impact Level 5 Continuous Authorization)  
-**Package Output Location:** [`docs/accreditation/`](file:///home/bjarrett/Projects/devops/repos/zarf-uds-lula-datalakehouse/docs/accreditation)  
+**Package Output Location:** [`docs/accreditation/`](file:///home/bjarrett/Projects/zarf-uds-lula-datalakehouse/docs/accreditation)  
 
 ---
 

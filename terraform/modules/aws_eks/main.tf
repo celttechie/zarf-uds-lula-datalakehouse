@@ -151,11 +151,11 @@ resource "aws_iam_role_policy_attachment" "ecr_policy" {
 
 resource "aws_eks_node_group" "spot_nodes" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.cluster_name}-spot-nodes"
+  node_group_name = "${var.cluster_name}-node-group"
   node_role_arn   = aws_iam_role.node_group_role.arn
   subnet_ids      = aws_subnet.eks_subnets[*].id
 
-  capacity_type  = "SPOT"
+  capacity_type  = var.capacity_type
   instance_types = var.instance_types
   disk_size      = var.disk_size
 

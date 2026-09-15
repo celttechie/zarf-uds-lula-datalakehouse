@@ -29,6 +29,7 @@ module "k3s_sandbox" {
   allowed_cidr_blocks = var.allowed_cidr_blocks
   instance_type       = var.instance_type
   root_volume_size    = var.root_volume_size
+  use_spot            = var.use_spot
   tags                = var.tags
 }
 

@@ -40,6 +40,12 @@ variable "root_volume_size" {
   default     = 50
 }
 
+variable "use_spot" {
+  description = "Whether to use EC2 Spot instances (requires approved Spot quota) or On-Demand (default false to bypass quota restrictions)"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Default resource tags applied to all AWS components"
   type        = map(string)

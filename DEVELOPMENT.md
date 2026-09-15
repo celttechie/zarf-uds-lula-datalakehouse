@@ -84,6 +84,12 @@ Phase 4 enforces zero-trust architecture across all deployed Medallion workloads
 
 For each step in **[PLAN.md](PLAN.md)**, run the designated verification command before proceeding:
 
+* **Run Pre-flight Environment Doctor & Schema Diagnostics:**
+  ```bash
+  make doctor
+  # or: python3 scripts/doctor.py
+  ```
+
 * **Run Full Unit Test Suite (Phases 2-4):**
   ```bash
   make test

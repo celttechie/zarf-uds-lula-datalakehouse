@@ -159,7 +159,7 @@ resource "aws_key_pair" "k3s_keypair" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# SPOT EC2 INSTANCE WITH K3S BOOTSTRAP
+# EC2 INSTANCE WITH K3S BOOTSTRAP (ON-DEMAND OR SPOT)
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "aws_ami" "ubuntu" {
@@ -210,16 +210,21 @@ locals {
   EOF
 }
 
-resource "aws_spot_instance_request" "k3s_spot_node" {
+resource "aws_instance" "k3s_node" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
-  spot_type                   = "one-time"
-  wait_for_fulfillment        = true
   key_name                    = aws_key_pair.k3s_keypair.key_name
   subnet_id                   = aws_subnet.public_subnet.id
   vpc_security_group_ids      = [aws_security_group.k3s_sg.id]
   associate_public_ip_address = true
   user_data                   = local.user_data
+
+  dynamic "instance_market_options" {
+    for_each = var.use_spot ? [1] : []
+    content {
+      market_type = "spot"
+    }
+  }
 
   root_block_device {
     volume_size           = var.root_volume_size
@@ -229,13 +234,6 @@ resource "aws_spot_instance_request" "k3s_spot_node" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.environment_name}-spot-node"
+    Name = "${var.environment_name}-${var.use_spot ? "spot" : "ondemand"}-node"
   })
-}
-
-resource "aws_ec2_tag" "spot_instance_tags" {
-  for_each    = merge(var.tags, { Name = "${var.environment_name}-spot-node" })
-  resource_id = aws_spot_instance_request.k3s_spot_node.spot_instance_id
-  key         = each.key
-  value       = each.value
 }
