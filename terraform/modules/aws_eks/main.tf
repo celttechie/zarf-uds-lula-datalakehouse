@@ -155,6 +155,7 @@ resource "aws_eks_node_group" "spot_nodes" {
   node_role_arn   = aws_iam_role.node_group_role.arn
   subnet_ids      = aws_subnet.eks_subnets[*].id
 
+  ami_type       = "AL2023_x86_64_STANDARD"
   capacity_type  = var.capacity_type
   instance_types = var.instance_types
   disk_size      = var.disk_size
