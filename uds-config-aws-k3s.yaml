@@ -1,14 +1,14 @@
-# UDS Bundle Runtime & Deployment Configuration
+# UDS Bundle Runtime & Deployment Configuration for AWS EC2 Spot + K3s
 options:
   log_level: info
 
 shared:
-  DOMAIN: datalake.local
+  DOMAIN: datalake.aws-k3s.local
   STORAGE_CLASS: local-path
 
 variables:
   il5-data-lakehouse:
-    DOMAIN: datalake.local
+    DOMAIN: datalake.aws-k3s.local
     STORAGE_CLASS: local-path
     NAMESPACE: datalakehouse
     STORAGE_RETENTION: "true"

@@ -87,17 +87,18 @@ def main():
             with open(uds_config_path, "r") as f:
                 config_data = yaml.safe_load(f)
 
-            deploy_set = config_data.get("bundle", {}).get("deploy", {}).get("set", {})
+            variables = config_data.get("variables", {})
+            dlh_vars = variables.get("il5-data-lakehouse", {})
             has_bundle_cfg = (
-                deploy_set.get("namespace") == "datalakehouse" and
-                deploy_set.get("security_level") == "IL5" and
-                deploy_set.get("mesh", {}).get("mtls_mode") == "STRICT"
+                dlh_vars.get("NAMESPACE") == "datalakehouse" and
+                dlh_vars.get("SECURITY_PROFILE") == "il5-strict" and
+                dlh_vars.get("STORAGE_CLASS") == "local-path"
             )
             checks.append({
                 "name": "UDS Runtime Configuration (uds-config.yaml)",
                 "target": "uds-config.yaml",
-                "expected": "Valid bundle deploy settings with STRICT mTLS & IL5 baseline",
-                "result": f"Configured (namespace: {deploy_set.get('namespace')}, security: {deploy_set.get('security_level')}, mtls: {deploy_set.get('mesh', {}).get('mtls_mode')})",
+                "expected": "Valid variables settings with local-path & IL5 baseline",
+                "result": f"Configured (namespace: {dlh_vars.get('NAMESPACE')}, security: {dlh_vars.get('SECURITY_PROFILE')}, storage: {dlh_vars.get('STORAGE_CLASS')})",
                 "status": "PASS" if has_bundle_cfg else "FAIL"
             })
         except Exception as e:
@@ -202,7 +203,7 @@ def main():
                 zarf_data = yaml.safe_load(f)
 
             zarf_comp_names = [c.get("name") for c in zarf_data.get("components", [])]
-            dlh_pkg = next((p for p in uds_data.get("packages", []) if p.get("name") == "datalakehouse"), None)
+            dlh_pkg = next((p for p in uds_data.get("packages", []) if p.get("name") == "il5-data-lakehouse"), None)
             
             if dlh_pkg:
                 overrides = dlh_pkg.get("overrides", {})
@@ -212,7 +213,7 @@ def main():
                 compat_msg = f"Overrides valid for components: {override_keys}"
             else:
                 compat_status = "FAIL"
-                compat_msg = "datalakehouse package definition not found in bundle"
+                compat_msg = "il5-data-lakehouse package definition not found in bundle"
 
             checks.append({
                 "name": "UDS Package & Component Compatibility",

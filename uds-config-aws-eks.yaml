@@ -1,0 +1,15 @@
+# UDS Bundle Runtime & Deployment Configuration for AWS EKS
+options:
+  log_level: info
+
+shared:
+  DOMAIN: datalake.aws-eks.local
+  STORAGE_CLASS: gp3
+
+variables:
+  il5-data-lakehouse:
+    DOMAIN: datalake.aws-eks.local
+    STORAGE_CLASS: gp3
+    NAMESPACE: datalakehouse
+    STORAGE_RETENTION: "true"
+    SECURITY_PROFILE: il5-strict

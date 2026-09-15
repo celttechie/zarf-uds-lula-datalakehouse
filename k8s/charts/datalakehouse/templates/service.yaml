@@ -5,6 +5,10 @@ metadata:
   name: minio
   labels:
     app.kubernetes.io/name: minio
+    zarf.dev/connect-name: minio
+  annotations:
+    zarf.dev/connect-description: "MinIO S3 Object Storage Console"
+    zarf.dev/connect-url: "/"
 spec:
   type: ClusterIP
   ports:
@@ -25,6 +29,9 @@ metadata:
   name: postgresql
   labels:
     app: postgresql
+    zarf.dev/connect-name: postgresql
+  annotations:
+    zarf.dev/connect-description: "PostgreSQL Gold Data Warehouse"
 spec:
   type: ClusterIP
   ports:
