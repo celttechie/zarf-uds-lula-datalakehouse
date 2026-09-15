@@ -61,6 +61,21 @@ elif [[ "${TARGET}" == "eks" ]]; then
   aws eks update-kubeconfig --name "${CLUSTER_NAME}" --kubeconfig "${OUTPUT_KUBECONFIG}"
 
   echo "✅ Kubeconfig successfully written to ${OUTPUT_KUBECONFIG}"
+  echo "📦 Ensuring default 'gp3' StorageClass is configured for AWS EBS CSI driver..."
+  KUBECONFIG="${OUTPUT_KUBECONFIG}" kubectl apply -f - <<EOF >/dev/null 2>&1 || true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"
+EOF
   echo "👉 To activate, run:"
   echo "   export KUBECONFIG=${OUTPUT_KUBECONFIG}"
 

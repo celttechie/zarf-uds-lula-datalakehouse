@@ -41,6 +41,10 @@ We implement a multi-layered validation and diagnostic framework integrated dire
 ### 4. Verified Container Registry Pinning
 * Pinned MinIO S3 container images to official immutable releases on Quay (`quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z`) to prevent Docker Hub anonymous pull limits and authentication failures.
 
+### 5. EKS 1.30+ AL2023 Node Groups & Default `gp3` StorageClass Automation
+* Configured Managed Node Groups to use standard Amazon Linux 2023 (`ami_type = "AL2023_x86_64_STANDARD"`), preventing `InvalidParameterException: Requested AMI for this version 1.30 is not supported` caused by deprecated AL2 AMIs.
+* Automated the registration of the default `gp3` StorageClass (`storageclass.kubernetes.io/is-default-class: "true"`) in `scripts/fetch_aws_kubeconfig.sh` upon EKS cluster creation, ensuring dynamic EBS volume binding for Zarf registry and Lakehouse PVCs without manual intervention.
+
 ## Consequences
 
 ### Positive
@@ -55,3 +59,4 @@ We implement a multi-layered validation and diagnostic framework integrated dire
 * Defense Unicorns UDS CLI Documentation: https://uds.defenseunicorns.com/
 * Defense Unicorns Zarf Packaging: https://docs.zarf.dev/
 * NIST SP 800-53 Rev 5: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+
