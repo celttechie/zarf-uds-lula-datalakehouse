@@ -129,8 +129,12 @@ deploy: zarf-deploy ## Deploy Data Lakehouse workloads into target K8s cluster
 
 audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go/Python exporter
 	@echo "🛡️  Executing Lula OSCAL validation..."
-	@if [ -z "$$KUBECONFIG" ] && [ -f "$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml" ]; then \
-		export KUBECONFIG="$$HOME/Projects/devops/repos/homelab-terraform_k8s/terraform/environments/03-k8s-bootstrap/kubeconfig.yaml"; \
+	@if [ -z "$$KUBECONFIG" ] && [ -f ".kube/config-aws-eks.yaml" ]; then \
+		export KUBECONFIG=".kube/config-aws-eks.yaml"; \
+	elif [ -z "$$KUBECONFIG" ] && [ -f ".kube/config-aws-k3s.yaml" ]; then \
+		export KUBECONFIG=".kube/config-aws-k3s.yaml"; \
+	elif [ -z "$$KUBECONFIG" ] && [ -f "$$HOME/.kube/config" ]; then \
+		export KUBECONFIG="$$HOME/.kube/config"; \
 	fi; \
 	rm -f assessment-results.yaml; \
 	if command -v lula >/dev/null 2>&1; then \

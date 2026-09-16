@@ -8,11 +8,11 @@ Accepted
 
 ## Context
 
-To run zero-trust Kubernetes clusters (Zarf/UDS) locally on the T5600 workstation, we require an automated mechanism to spin up guest virtual machines with nested virtualization support (`/dev/kvm` host-passthrough).
+To run zero-trust Kubernetes clusters (Zarf/UDS) locally on host virtualization infrastructure, we require an automated mechanism to spin up guest virtual machines with nested virtualization support (`/dev/kvm` host-passthrough).
 
 ## Decision
 
-We choose **Terraform** using the **`dmacvicar/libvirt`** provider and **`cloud-init`**, mirroring the established architecture in `homelab-terraform_k8s`.
+We choose **Terraform** using the **`dmacvicar/libvirt`** provider and **`cloud-init`** for local virtualization provisioning.
 
 ### Rationale:
 * **Declarative Control:** Infrastructure is defined as code (`main.tf`, `variables.tf`), making VM teardown and rebuild deterministic.

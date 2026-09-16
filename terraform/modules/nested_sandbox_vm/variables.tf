@@ -7,13 +7,13 @@ variable "sandbox_vm_name" {
 variable "libvirt_user" {
   description = "Username for physical hypervisor SSH access"
   type        = string
-  default     = "bjarrett"
+  default     = "ubuntu"
 }
 
 variable "libvirt_host_ip" {
   description = "IP address of physical hypervisor host"
   type        = string
-  default     = "192.168.9.110"
+  default     = "192.168.1.100"
 }
 
 variable "ssh_private_key_path" {
