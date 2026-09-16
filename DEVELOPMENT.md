@@ -1,5 +1,9 @@
 # Developer & Workflow Guide
 
+> [!WARNING]
+> ### ⚠️ Alpha Status & Testing Notice
+> This project is in an **Alpha / Experimental state**. Automated unit tests for data transforms and schema validations are included, but end-to-end multi-cloud integration testing is limited. Contributions and issue reports are welcome.
+
 This guide details local workstation prerequisites, cloud authentication, environment configuration, and verification commands required to build, bundle, deploy, and audit the **Zarf + UDS + Lula Data Lakehouse** project.
 
 ---

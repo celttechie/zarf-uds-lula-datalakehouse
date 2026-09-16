@@ -1,6 +1,16 @@
 # Air-Gapped IL4/IL5 Accredited Data Lakehouse (Zarf + UDS + Lula)
 
+[![Status: Alpha](https://img.shields.io/badge/Status-Alpha%20%2F%20Experimental-orange.svg)](PLAN.md)
+[![Testing: Minimal](https://img.shields.io/badge/Testing-Limited%20Coverage-yellow.svg)](DEVELOPMENT.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 An enterprise-grade reference architecture for delivering an **Air-Gapped Data Lakehouse** (MinIO S3 + Apache Parquet + DuckDB/PostgreSQL) with continuous **DoD IL4 / IL5 Accreditation Artifact Generation** using **Zarf**, **UDS (Unicorn Delivery System)**, and **Lula (OSCAL Compliance-as-Code)**.
+
+> [!WARNING]
+> ### ⚠️ Project Maturity: Alpha Reference Architecture
+> This repository is an **experimental proof-of-concept and reference architecture** under active alpha development.
+> * **Testing Notice:** Automated unit tests and static schema checks are in place, but full multi-cloud automated regression suites and extensive failure-mode testing are currently minimal.
+> * **Production Use:** Not certified for mission-critical or live production workloads without independent security verification, vulnerability scanning, and formal accreditation review.
 
 > 💡 **Infrastructure Agnostic Multi-Target Design:**
 > * **Option A (Local KVM Sandbox):** Automated two-tier libvirt/KVM nested hypervisor sandbox (`01-nested-sandbox` & `02-k8s-cluster`).
