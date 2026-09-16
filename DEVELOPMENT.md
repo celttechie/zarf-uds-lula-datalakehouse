@@ -1,124 +1,171 @@
 # Developer & Workflow Guide
 
-This guide details the local workstation prerequisites, environment configuration, and verification commands required to build, bundle, deploy, and audit the **Zarf + UDS + Lula Data Lakehouse** project.
+This guide details local workstation prerequisites, cloud authentication, environment configuration, and verification commands required to build, bundle, deploy, and audit the **Zarf + UDS + Lula Data Lakehouse** project.
 
 ---
 
-## 💡 Infrastructure Agnostic Design
+## 💡 Multi-Target Infrastructure Design
 
-Zarf, UDS, and Lula operate purely at the Kubernetes API level. This repository supports **two deployment workflows**:
+Zarf, UDS, and Lula operate purely at the Kubernetes API level. This repository supports **four deployment targets**:
 
-1. **Option A (Automated Terraform Setup):** Use our included two-stage Terraform libvirt modules (`01-nested-sandbox` & `02-k8s-cluster`) to provision a fresh sandbox hypervisor VM and K3s cluster on a target host (`192.168.9.110`).
-2. **Option B (Bring Your Own Server / Cluster):** Deploy directly to any existing physical server, cloud VM, or Kubernetes cluster (K3s, RKE2, EKS, KinD, Proxmox). Simply set `KUBECONFIG` and proceed to Phase 3 & Phase 4.
+1. **Option A (Local KVM Sandbox VM):** Automated two-tier libvirt/KVM nested hypervisor sandbox (`01-nested-sandbox` & `02-k8s-cluster`) on a local or remote hypervisor host server.
+2. **Option B (AWS EC2 Spot K3s):** Ephemeral single-node K3s cluster on an AWS EC2 Spot instance (`c6a.xlarge` / `t3.xlarge`) costing ~$0.04/hr with zero control-plane fee (`03-aws-ec2-k3s`).
+3. **Option C (AWS Managed EKS):** Production-fidelity AWS EKS cluster (Kubernetes 1.30+) with Amazon Linux 2023 (`AL2023_x86_64_STANDARD`) managed node group and automated EBS CSI `gp3` storage class provisioning (`04-aws-eks`).
+4. **Option D (Bring Your Own Cluster):** Deploy directly to any existing physical server, cloud VM, or Kubernetes cluster (KinD, RKE2, EKS, GKE, AKS, bare-metal). Simply set `KUBECONFIG` and proceed to packaging and deployment.
 
 ---
 
-## 🛠️ 1. Local Tooling Prerequisites
+## 🛠️ 1. Workstation Tooling Prerequisites
 
-Ensure the following tools are installed on your host system:
+Ensure the following tools are installed on your workstation:
 
+* **Python** (`>= 3.10`): Required for Lakehouse ETL pipelines, test suites, and zero-dependency compliance evaluators.
+* **OpenTofu / Terraform** (`>= 1.5.0`): Infrastructure provisioning for Options A, B, and C.
+* **AWS CLI** (`>= 2.0` - *Required for Options B & C*): Configured with valid AWS credentials (`aws configure`).
+* **kubectl** (`>= 1.28.0`): Kubernetes cluster management CLI.
 * **Zarf** (`>= 0.30.0`): Air-gapped packaging CLI tool.
 * **UDS CLI** (`>= 0.10.0`): Defense Unicorns delivery stack bundler.
-* **Lula** (`>= 0.8.0`): OSCAL continuous compliance evaluation CLI.
-* **Python** (`3.10+`): For local data transformation scripts, verification tooling, and compliance report parsing.
-* **Go** (`1.21+`): For compiling the compliance exporter CLI.
-* **Terraform** (`>= 1.5.0` - *Optional for Option A*): Infrastructure provisioning tool.
+* **Lula** (`>= 0.8.0` - *Optional*): OSCAL continuous compliance evaluation CLI (native Python fallback included).
+* **Go** (`>= 1.21` - *Optional*): For compiling the compliance exporter binary (native Python fallback included).
+
+### 🩺 Run Pre-Flight Diagnostics
+Run `make doctor` before provisioning to inspect your local toolchain, AWS authentication, local Zarf cache, and declarative schema parity across files:
+
+```bash
+make doctor
+# or: python3 scripts/doctor.py
+```
 
 ---
 
 ## 🔑 2. Deployment Workflows
 
-### Option A: Provisioning via Included Terraform Modules
+### Option A: Local KVM Sandbox VM via Libvirt
 ```bash
-# Stage 1: Nested Sandbox Hypervisor VM
-cd terraform/environments/01-nested-sandbox
-cp terraform.tfvars.example terraform.tfvars
-terraform init && terraform apply
+# Provision Stage 1 Layer 1 Nested Sandbox VM
+make dev-sandbox
 
-# Stage 2: K8s Cluster Nodes inside Sandbox VM
-cd ../02-k8s-cluster
-cp terraform.tfvars.example terraform.tfvars
-terraform init && terraform apply
+# Provision Stage 2 K8s Cluster Node inside Sandbox VM
+make dev-cluster
+
+# Deploy UDS Bundle
+make bundle-deploy
+
+# Tear down all local infrastructure
+make dev-destroy-all
 ```
 
-### Option B: Deploying to Any Existing Server or K8s Cluster
+---
+
+### Option B: Ephemeral AWS EC2 Spot + K3s Sandbox
+Ideal for cost-effective CI/CD testing and cloud verification (~$0.04/hr).
+
+```bash
+# 1. Provision EC2 Spot instance and automatically fetch kubeconfig
+make aws-k3s-up
+
+# 2. Deploy UDS Bundle with AWS K3s runtime overlay
+make bundle-deploy-aws-k3s
+
+# 3. Execute IL4/IL5 Compliance Audit
+make audit
+
+# 4. Destroy EC2 instance immediately to eliminate spend
+make aws-k3s-down
+```
+
+---
+
+### Option C: Production-Fidelity AWS Managed EKS
+Ideal for testing AWS EBS CSI driver integration, IAM roles for service accounts, and enterprise compliance.
+
+```bash
+# 1. Provision Managed EKS Cluster (1.30+) & configure gp3 storage class
+make aws-eks-up
+
+# 2. Deploy UDS Bundle with AWS EKS gp3 storage class overlay
+make bundle-deploy-aws-eks
+
+# 3. Execute IL4/IL5 Compliance Audit
+make audit
+
+# 4. Destroy Managed EKS cluster immediately to eliminate control plane fees
+make aws-eks-down
+```
+
+---
+
+### Option D: Deploy to Any Existing Server or Cluster
 ```bash
 # 1. Point to your target server / cluster
 export KUBECONFIG=/path/to/target/kubeconfig
 
 # 2. Build Zarf Air-Gapped Package (Phase 3)
-make zarf-package
-# or: zarf package create --confirm
+make package
 # Generates: zarf-package-il5-data-lakehouse-amd64-0.3.0.tar.zst (with Syft SBOMs)
 
 # 3. Initialize Zarf Internal Registry in Target Cluster (if not yet initialized)
 make zarf-init
-# or: zarf init --confirm
 
-# 4. Deploy Zarf Air-Gapped Data Lakehouse Package (MinIO, Postgres, ETL Job)
+# 4. Deploy Zarf Package directly or via UDS Bundle
 make zarf-deploy
-# or: zarf package deploy zarf-package-il5-data-lakehouse-amd64-0.3.0.tar.zst --confirm
-
-# 5. Create & Deploy UDS Bundle (Phase 4)
+# or:
 make bundle-create
 make bundle-deploy
-# or: uds deploy uds-bundle-il5-data-lakehouse-bundle-amd64-0.4.0.tar.zst --confirm
 
-# 6. Audit IL4/IL5 Compliance & Run Go Exporter (Phase 5)
+# 5. Evaluate DoD IL4/IL5 Compliance (Phase 5)
 make audit
 ```
 
 ---
 
-## 🛡️ 3. Zero-Trust Service Mesh Security (Istio mTLS STRICT)
+## ⚙️ 3. Runtime Configuration Overlays
+
+The deployment uses targeted UDS configuration overlays depending on the infrastructure environment:
+
+* **`uds-config.yaml` (Default / Local KVM):** Configures `local-path` storage class and local mesh routing.
+* **`uds-config-aws-k3s.yaml` (AWS EC2 K3s):** Parameterized for EC2 K3s single-node sandbox with `local-path` storage.
+* **`uds-config-aws-eks.yaml` (AWS Managed EKS):** Overrides storage class to AWS EBS `gp3` with dynamic volume expansion enabled.
+
+---
+
+## 🛡️ 4. Zero-Trust Service Mesh Security (Istio mTLS STRICT)
 
 Phase 4 enforces zero-trust architecture across all deployed Medallion workloads:
 
 * **Namespace-Wide mTLS STRICT (`k8s/mesh/peer-authentication.yaml`):** Enforces cryptographic mutual TLS identity and encryption across the `datalakehouse` namespace, rejecting plaintext communication.
 * **Least-Privilege Authorization (`k8s/mesh/authorization-policy.yaml`):** Limits access to MinIO S3 (ports `9000`, `9001`) and PostgreSQL (port `5432`) strictly to authorized SPIFFE service account identities and ingress gateways.
-* **Runtime Parameterization (`uds-config.yaml`):** Centralizes storage classes (`local-path`), domain routing (`datalake.local`), and DoD `IL5` baseline enforcement.
+* **DoD IL5 Compliance Baseline:** Evaluates container security context (non-root execution, read-only root filesystems, drop all capabilities) and cryptographic boundary protections.
 
 ---
 
-## 🧪 4. Verification & Testing Commands
+## 🧪 5. Verification & Testing Commands
 
-For each step in **[PLAN.md](PLAN.md)**, run the designated verification command before proceeding:
-
-* **Run Pre-flight Environment Doctor & Schema Diagnostics:**
+* **Pre-Flight Diagnostics:**
   ```bash
   make doctor
-  # or: python3 scripts/doctor.py
   ```
 
-* **Run Full Unit Test Suite (Phases 2-4):**
+* **Full Unit Test Suite (28 automated tests):**
   ```bash
   make test
-  # or: python3 -m unittest discover tests
   ```
 
-* **Verify Phase 1 (Infrastructure & Sandbox):**
-  ```bash
-  make verify-phase1
-  ```
-
-* **Verify Phase 3 (Zarf Packaging & SBOM):**
-  ```bash
-  make verify-phase3
-  ```
-
-* **Verify Phase 4 (UDS Bundle & Istio Service Mesh):**
-  ```bash
-  make verify-phase4
-  ```
-
-* **Verify Target Cluster Status:**
-  ```bash
-  kubectl get nodes -o wide
-  kubectl get pods -n datalakehouse
-  kubectl get peerauthentication,authorizationpolicy -n datalakehouse
-  ```
-
-* **Verify Lula OSCAL Audit (Phase 5):**
+* **Continuous Compliance Audit (Lula / Python Fallback):**
   ```bash
   make audit
+  ```
+
+* **Generate DoD IL5 ATO Package (SSP, SAR, ConMon, POA&M):**
+  ```bash
+  make ato-package
+  ```
+
+* **Automated Phase Verification Gates:**
+  ```bash
+  make verify-phase1   # Verify local KVM sandbox VM
+  make verify-phase3   # Verify Zarf package & Syft SBOMs
+  make verify-phase4   # Verify UDS bundle & Istio service mesh
+  make verify-phase5   # Verify Lula OSCAL evaluation
+  make verify-phase6   # Verify ATO artifact generation
   ```
