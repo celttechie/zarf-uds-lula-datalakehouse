@@ -56,36 +56,39 @@ flowchart TD
 
 ---
 
-## 🩺 Pre-Flight Diagnostics (`make doctor`)
+## 🏁 Getting Started (First 5 Minutes)
 
-Before provisioning or deploying, run the built-in diagnostic tool to inspect host toolchains, AWS authentication, local Zarf cache, and cross-file declarative schema parity:
-
+### Step 1: Clone & Run Pre-Flight Diagnostics
+Clone the repository and run `make doctor` to inspect your local environment:
 ```bash
+git clone https://github.com/celttechie/zarf-uds-lula-datalakehouse.git
+cd zarf-uds-lula-datalakehouse
 make doctor
-# or: python3 scripts/doctor.py
+```
+> 💡 **Self-Healing Diagnostics:** `make doctor` verifies your installed CLIs (`python3`, `tofu`/`terraform`, `kubectl`, `zarf`, `uds`, `lula`, `go`, AWS CLI) and prints exact copy-paste installation commands for any missing tools.
+
+### Step 2: Instant Local Validation (No Cluster or Cloud Needed)
+Test the data transformations and generate the complete DoD IL5 ATO compliance documentation package locally:
+```bash
+# Run 28 automated unit tests and simulate the Medallion ETL pipeline
+make test
+
+# Generate the 4-document DoD IL5 ATO package in docs/accreditation/
+make ato-package
 ```
 
-The doctor validates:
-* **Toolchain Availability:** `python3`, `tofu`/`terraform`, `kubectl`, `zarf`, `uds`, `go`, `lula` (with zero-dependency fallback warnings).
-* **AWS Cloud Authentication:** STS caller identity and account verification status.
-* **Declarative Schema Parity:** Package name alignment across `zarf.yaml` and `uds-bundle.yaml`, UDS config variable scopes, local package path declarations, and container image immutability.
-
----
-
-## 🚀 Quick Start Workflows
-
-### 1. Build Air-Gapped Artifacts (Phase 3 & 4)
+### Step 3: Build Air-Gapped Packaging Artifacts
 ```bash
-# Build Zarf air-gapped package (.tar.zst) with Syft SBOMs
+# 1. Build immutable Zarf package (.tar.zst) with Syft SBOMs
 make package
 
-# Create UDS Bundle archive (.tar.zst)
+# 2. Build UDS bundle archive (.tar.zst)
 make bundle-create
 ```
 
-### 2. Choose Deployment Target
+### Step 4: Choose Your Deployment Target
 
-#### Option A: Local KVM Sandbox VM
+#### Option A: Local KVM Sandbox VM (Libvirt)
 ```bash
 make dev-sandbox    # Provision Stage 1 Layer 1 Nested Hypervisor VM
 make dev-cluster    # Provision Stage 2 K8s Cluster Node inside Sandbox
@@ -108,20 +111,12 @@ make audit                   # Run IL4/IL5 compliance audit
 make aws-eks-down            # Destroy EKS cluster & avoid control plane fees
 ```
 
-#### Option D: Bring Your Own Cluster
+#### Option D: Bring Your Own Cluster (KinD, RKE2, OpenShift, Bare-Metal)
 ```bash
 export KUBECONFIG=/path/to/target/kubeconfig
 make zarf-init       # Initialize Zarf internal registry in cluster
 make bundle-deploy   # Deploy UDS Bundle
-```
-
-### 3. Run Compliance Audit & Generate ATO Package (Phase 5 & 6)
-```bash
-# Run continuous OSCAL compliance audit
-make audit
-
-# Generate complete DoD IL5 ATO Documentation Package
-make ato-package
+make audit           # Run IL4/IL5 compliance audit
 ```
 
 ---
