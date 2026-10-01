@@ -1,14 +1,21 @@
-# Air-Gapped IL4/IL5 Accredited Data Lakehouse (Zarf + UDS + Lula)
+# Air-Gapped IL4/IL5 Accredited Data Lakehouse (`zarf-uds-lula-datalakehouse`)
 
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha%20%2F%20Experimental-orange.svg)](PLAN.md)
 [![Testing: Minimal](https://img.shields.io/badge/Testing-Limited%20Coverage-yellow.svg)](DEVELOPMENT.md)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-An enterprise-grade reference architecture for delivering an **Air-Gapped Data Lakehouse** (MinIO S3 + Apache Parquet + DuckDB/PostgreSQL) with continuous **DoD IL4 / IL5 Accreditation Artifact Generation** using **Zarf**, **UDS (Unicorn Delivery System)**, and **Lula (OSCAL Compliance-as-Code)**.
+A hands-on demonstration and learning project created to explore and master the **Defense Unicorns toolchain (Zarf, UDS, Lula)** by building a realistic, compliant mission workload from the ground up.
+
+Rather than deploying a toy application, I built an end-to-end **Medallion Data Lakehouse** (MinIO S3 + PostgreSQL + Apache Parquet) to demonstrate practical understanding of what it takes to engineer a system that satisfies **DoD Impact Level 5 (IL5)** and **NIST SP 800-53 Rev 5** requirements in disconnected defense environments:
+
+1. **Air-Gap Delivery (Zarf):** Packaging multi-tier data services, ETL pipelines, and Syft SBOMs into self-contained, immutable `.tar.zst` artifacts.
+2. **Zero-Trust Network Architecture (UDS Core & Istio):** Enforcing cryptographic pod-to-pod isolation, `STRICT` mutual TLS, and explicit `AuthorizationPolicies` across data lakehouse tiers.
+3. **Continuous Compliance as Code (Lula & OSCAL):** Writing declarative OSCAL v1.1.2 assessment models to continuously audit live Kubernetes state against security controls (AC-3, AC-4, IA-2, SC-8, SC-28, CM-8).
+4. **Automated ATO Package Generation:** Using custom Python and Go compliance exporters to transform live Lula assessment results into audit-ready DoD IL5 Authorization to Operate (ATO) documentation (SSP, SAR, Continuous Monitoring Plan, and POA&M).
 
 > [!WARNING]
 > ### ⚠️ Project Maturity: Alpha Reference Architecture
-> This repository is an **experimental proof-of-concept and reference architecture** under active alpha development.
+> This repository is an **experimental proof-of-concept and learning laboratory** under active alpha development.
 > * **Testing Notice:** Automated unit tests and static schema checks are in place, but full multi-cloud automated regression suites and extensive failure-mode testing are currently minimal.
 > * **Production Use:** Not certified for mission-critical or live production workloads without independent security verification, vulnerability scanning, and formal accreditation review.
 
@@ -17,6 +24,36 @@ An enterprise-grade reference architecture for delivering an **Air-Gapped Data L
 > * **Option B (AWS EC2 Spot K3s):** Ultra low-cost (~$0.04/hr) cloud sandbox with automated kubeconfig fetching (`make aws-k3s-up`).
 > * **Option C (AWS Managed EKS):** Production-fidelity AWS EKS cluster (K8s 1.30+) with AL2023 nodes and automated EBS CSI `gp3` storage (`make aws-eks-up`).
 > * **Option D (Bring Your Own Cluster):** Point your `KUBECONFIG` to any existing cluster (KinD, RKE2, OpenShift, bare-metal) and deploy directly without Terraform.
+
+---
+
+## Where this fits in the 3-Tier Architecture
+
+This repository represents **Tier 3: Software, Bundle Engineering & Mission Workload**. It is the demonstration application deployed onto a target cluster that has been prepared by **Tier 2** ([`uds-platform-prep`](https://github.com/celttechie/uds-platform-prep)) on top of **Tier 1** infrastructure (whether local Libvirt KVM sandboxes, ephemeral AWS EC2 Spot K3s, AWS Managed EKS, or bare-metal edge nodes).
+
+```mermaid
+flowchart TD
+    subgraph T1 ["Tier 1: Target Substrates (Underlying Compute Targets)"]
+        direction LR
+        OPI["orangepi-airgapped\n(Physical Bare-Metal ARM64 SBC)"]
+        KVM["airgapped-sandbox-vm\n(Nested KVM Hypervisor Sandbox)"]
+        AWS["AWS Infrastructure\n(EC2 Spot K3s / Managed EKS)"]
+    end
+
+    subgraph T2 ["Tier 2: Platform Preparation (uds-platform-prep)"]
+        direction LR
+        PREP["uds-platform-prep\n(Toolchain Ingestion • K3s/RKE2/Talos • In-Cluster zarf init)"]
+    end
+
+    subgraph T3 ["Tier 3: Software & Bundle Engineering (This Repo: zarf-uds-lula-datalakehouse)"]
+        direction LR
+        DEV["uds-bundle-dev-test\n(Modular Package & Bundle Authoring)"]
+        LAKE["zarf-uds-lula-datalakehouse\n• Mission Lakehouse (MinIO S3 + Postgres)\n• Istio Service Mesh (mTLS STRICT)\n• Lula OSCAL Continuous ATO Generator"]
+    end
+
+    T1 ==>|"Clean, Isolated Target Ready"| T2
+    T2 ==>|"UDS-Ready Cluster"| T3
+```
 
 ---
 
