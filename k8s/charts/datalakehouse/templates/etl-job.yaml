@@ -4,6 +4,10 @@ metadata:
   name: medallion-etl-job
   labels:
     app: etl-job
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-weight: "5"
 spec:
   backoffLimit: 2
   template:
@@ -12,6 +16,11 @@ spec:
         app: etl-job
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
       containers:
         - name: etl-runner
           image: "{{ .Values.etlJob.image.repository }}:{{ .Values.etlJob.image.tag }}"
@@ -19,7 +28,6 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip install --no-cache-dir boto3 duckdb psycopg2-binary
               python -u /src/lakehouse_etl.py
           env:
             - name: PYTHONUNBUFFERED
