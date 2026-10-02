@@ -1,4 +1,4 @@
-.PHONY: help ci doctor dev-sandbox dev-cluster dev-destroy-all aws-k3s-up aws-k3s-down aws-eks-up aws-eks-down bundle-deploy-aws-k3s bundle-deploy-aws-eks verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
+.PHONY: help ci doctor dev-sandbox dev-cluster dev-destroy-all aws-k3s-up aws-k3s-down aws-eks-up aws-eks-down bundle-deploy-aws-k3s bundle-deploy-aws-eks verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean mission-status
 
 # Architecture detection (override via: make zarf-package ARCH=arm64)
 ARCH ?= $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
@@ -129,6 +129,9 @@ bundle-deploy: ## Deploy UDS bundle to target Kubernetes cluster
 	uds deploy --confirm
 
 deploy: zarf-deploy ## Deploy Data Lakehouse workloads into target K8s cluster
+
+mission-status: ## Display tactical edge mission status dashboard
+	@bash scripts/mission_status.sh
 
 audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go/Python exporter
 	@echo "🛡️  Executing Lula OSCAL validation..."
