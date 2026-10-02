@@ -5,7 +5,6 @@ metadata:
   name: il5-data-lakehouse-bundle
   description: "Air-Gapped DoD IL4/IL5 Medallion Data Lakehouse & Zero-Trust Service Mesh UDS Bundle"
   version: "0.4.0"
-  architecture: amd64
   authors: "Defense Unicorns & DevOps Team"
 
 packages:

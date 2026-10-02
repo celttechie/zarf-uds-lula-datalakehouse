@@ -1,5 +1,8 @@
 .PHONY: help ci doctor dev-sandbox dev-cluster dev-destroy-all aws-k3s-up aws-k3s-down aws-eks-up aws-eks-down bundle-deploy-aws-k3s bundle-deploy-aws-eks verify-phase1 test inspect verify-phase3 verify-phase4 verify-phase5 verify-phase6 ato-package package deploy audit go-build clean
 
+# Architecture detection (override via: make zarf-package ARCH=arm64)
+ARCH ?= $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+
 help: ## Display available Makefile target commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
@@ -103,11 +106,11 @@ ato-package: ## Generate complete DoD IL5 ATO Accreditation Package (SSP, SAR, C
 	@echo "📜 Generating complete DoD IL5 ATO Accreditation Package..."
 	python3 scripts/generate_ato_package.py
 
-package: zarf-package ## Build Zarf air-gapped package (.tar.zst)
+package: zarf-package ## Build Zarf air-gapped package (.tar.zst) for target ARCH (default: host arch)
 
-zarf-package: ## Build Zarf air-gapped package (.tar.zst)
-	@echo "📦 Building Zarf package..."
-	zarf package create --confirm
+zarf-package: ## Build Zarf air-gapped package (.tar.zst) for target ARCH (default: host arch)
+	@echo "📦 Building Zarf package for $(ARCH)..."
+	zarf package create . --architecture $(ARCH) --confirm
 
 zarf-init: ## Initialize Zarf internal registry on target Kubernetes cluster
 	@echo "⚙️  Initializing Zarf on target Kubernetes cluster..."
@@ -117,9 +120,9 @@ zarf-deploy: ## Deploy Zarf package to target Kubernetes cluster
 	@echo "🚀 Deploying Zarf package to target Kubernetes cluster..."
 	@bash scripts/deploy_zarf_package.sh
 
-bundle-create: ## Create UDS bundle archive (.tar.zst)
-	@echo "📦 Creating UDS Bundle..."
-	uds create . --confirm
+bundle-create: ## Create UDS bundle archive (.tar.zst) for target ARCH (default: host arch)
+	@echo "📦 Creating UDS Bundle for $(ARCH)..."
+	uds create . --architecture $(ARCH) --confirm
 
 bundle-deploy: ## Deploy UDS bundle to target Kubernetes cluster
 	@echo "🚀 Deploying UDS Bundle..."
@@ -149,12 +152,12 @@ audit: go-build ## Run Lula OSCAL continuous compliance evaluation and Go/Python
 		python3 scripts/compliance_exporter.py assessment-results.yaml; \
 	fi
 
-go-build: ## Build Golang OSCAL compliance exporter binary if Go is available
+go-build: ## Build Golang OSCAL compliance exporter binary for target ARCH if Go is available
 	@if command -v go >/dev/null 2>&1; then \
-		echo "🐹 Building Go compliance exporter CLI..."; \
-		mkdir -p bin && go build -o bin/compliance_exporter src/compliance_exporter/main.go; \
+		echo "🐹 Building Go compliance exporter CLI for $(ARCH)..."; \
+		mkdir -p bin && CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -o bin/compliance_exporter src/compliance_exporter/main.go; \
 	fi
 
 clean: ## Clean up local build artifacts and cache
 	@echo "🧹 Cleaning up artifacts..."
-	rm -rf bin/ zarf-package-*.tar.zst il5-results.yaml assessment-results.yaml docs/artifacts/
+	rm -rf bin/ zarf-package-*.tar.zst uds-bundle-*.tar.zst il5-results.yaml assessment-results.yaml docs/artifacts/

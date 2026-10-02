@@ -3,12 +3,17 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PACKAGE_FILE="$(ls -1 "${REPO_ROOT}"/zarf-package-il5-data-lakehouse-*.tar.zst 2>/dev/null | head -n 1 || true)"
+ARCH="${ARCH:-$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')}"
+PACKAGE_FILE="$(ls -1 "${REPO_ROOT}"/zarf-package-il5-data-lakehouse-${ARCH}-*.tar.zst 2>/dev/null | head -n 1 || true)"
 
 if [[ -z "${PACKAGE_FILE}" ]]; then
-  echo "📦 No Zarf package archive found. Building package first..."
-  (cd "${REPO_ROOT}" && zarf package create --confirm)
-  PACKAGE_FILE="$(ls -1 "${REPO_ROOT}"/zarf-package-il5-data-lakehouse-*.tar.zst | head -n 1)"
+  PACKAGE_FILE="$(ls -1 "${REPO_ROOT}"/zarf-package-il5-data-lakehouse-*.tar.zst 2>/dev/null | head -n 1 || true)"
+fi
+
+if [[ -z "${PACKAGE_FILE}" ]]; then
+  echo "📦 No Zarf package archive found for ${ARCH}. Building package first..."
+  (cd "${REPO_ROOT}" && zarf package create . --architecture "${ARCH}" --confirm)
+  PACKAGE_FILE="$(ls -1 "${REPO_ROOT}"/zarf-package-il5-data-lakehouse-${ARCH}-*.tar.zst | head -n 1)"
 fi
 
 echo "🚀 Deploying Zarf Package: $(basename "${PACKAGE_FILE}")..."

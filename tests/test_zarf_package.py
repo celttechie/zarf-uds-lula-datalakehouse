@@ -33,7 +33,8 @@ class TestZarfPackage(unittest.TestCase):
         self.assertIn("version", metadata, "Metadata must contain version")
         self.assertTrue(metadata.get("version"), "Version must not be empty")
         self.assertIn("description", metadata, "Metadata must contain description")
-        self.assertIn("architecture", metadata, "Metadata must contain architecture")
+        if "architecture" in metadata:
+            self.assertIn(metadata.get("architecture"), ["amd64", "arm64"])
 
     def test_zarf_components_and_helm_chart(self):
         """Verify components structure, Helm chart references, and local path validity"""

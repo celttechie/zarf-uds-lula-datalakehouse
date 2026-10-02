@@ -4,7 +4,6 @@ metadata:
   name: il5-data-lakehouse
   description: "Air-gapped DoD IL4/IL5 Medallion Data Lakehouse & Compliance Engine"
   version: "0.3.0"
-  architecture: amd64
 
 components:
   - name: datalakehouse-core
