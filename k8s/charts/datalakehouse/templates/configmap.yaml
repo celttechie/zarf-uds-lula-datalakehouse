@@ -214,6 +214,18 @@ data:
                 total_sales DECIMAL(10, 2),
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS tactical_air_tracks (
+                track_id VARCHAR(20) PRIMARY KEY,
+                callsign VARCHAR(30),
+                platform_type VARCHAR(50),
+                iff_status VARCHAR(25),
+                altitude_ft INT,
+                speed_mach DECIMAL(4, 2),
+                bearing_deg INT,
+                threat_level VARCHAR(25),
+                confidence VARCHAR(10),
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         """
         
         sql_commands = [create_table_sql]
@@ -230,8 +242,36 @@ data:
             sql_commands.append(upsert_sql)
             print(f" -> Upserted: {cat} | Txns: {tx_count} | Sales: ${tx_sales}")
 
+        tactical_tracks = [
+            ("TRK-0104", "VIPER-11", "F-35A Lightning II", "FRIENDLY", 34500, 1.45, 42, "NOMINAL", "99.8%"),
+            ("TRK-0219", "SENTRY-01", "E-3G Sentry (AWACS)", "FRIENDLY (C2)", 31000, 0.78, 180, "AIRBORNE C2", "100.0%"),
+            ("TRK-0782", "UNKNOWN-GHOST", "Fast-Mover (BVR)", "UNKNOWN", 48000, 2.10, 315, "ELEVATED", "94.2%"),
+            ("TRK-0914", "REAPER-04", "MQ-9A Reaper", "FRIENDLY", 22000, 0.32, 95, "ISR PATROL", "99.1%"),
+            ("TRK-1055", "STRATO-99", "KC-135R Stratotanker", "FRIENDLY", 26000, 0.74, 220, "REFUEL TRACK", "100.0%")
+        ]
+
+        print("\nInserting fused AWACS radar tracks into 'tactical_air_tracks' table...")
+        for trk in tactical_tracks:
+            tid, call, plat, iff, alt, spd, brg, threat, conf = trk
+            track_sql = f"""
+                INSERT INTO tactical_air_tracks (track_id, callsign, platform_type, iff_status, altitude_ft, speed_mach, bearing_deg, threat_level, confidence, last_updated)
+                VALUES ('{tid}', '{call}', '{plat}', '{iff}', {alt}, {spd}, {brg}, '{threat}', '{conf}', CURRENT_TIMESTAMP)
+                ON CONFLICT (track_id) DO UPDATE
+                SET callsign = EXCLUDED.callsign,
+                    platform_type = EXCLUDED.platform_type,
+                    iff_status = EXCLUDED.iff_status,
+                    altitude_ft = EXCLUDED.altitude_ft,
+                    speed_mach = EXCLUDED.speed_mach,
+                    bearing_deg = EXCLUDED.bearing_deg,
+                    threat_level = EXCLUDED.threat_level,
+                    confidence = EXCLUDED.confidence,
+                    last_updated = CURRENT_TIMESTAMP;
+            """
+            sql_commands.append(track_sql)
+            print(f" -> Fused Track: {tid} | {call} ({plat}) | Alt: {alt}ft | Mach {spd} | Threat: {threat}")
+
         pg_execute(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, sql_commands)
-        print("Gold metrics successfully written to PostgreSQL!")
+        print("\nGold tactical warehouse successfully updated in PostgreSQL!")
         print("\nMedallion ETL Pipeline completed successfully.")
 
     if __name__ == "__main__":
