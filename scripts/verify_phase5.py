@@ -14,14 +14,27 @@ ARTIFACTS_DIR = os.path.join(REPO_ROOT, "docs", "artifacts")
 REPORT_PATH = os.path.join(ARTIFACTS_DIR, "phase5_verification_report.md")
 
 def run_cmd(cmd, cwd=REPO_ROOT):
-    p = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd)
+    p = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd, env=os.environ)
     return p.returncode, p.stdout.strip(), p.stderr.strip()
+
+def setup_kubeconfig():
+    if not os.environ.get("KUBECONFIG"):
+        candidates = [
+            os.path.join(REPO_ROOT, ".kube", "config-aws-eks.yaml"),
+            os.path.join(REPO_ROOT, ".kube", "config-aws-k3s.yaml"),
+            os.path.expanduser("~/.kube/config")
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                os.environ["KUBECONFIG"] = c
+                break
 
 def main():
     print("=" * 75)
     print("🔍 VERIFYING PHASE 5: LULA OSCAL AUTOMATED COMPLIANCE AUDIT")
     print("=" * 75)
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+    setup_kubeconfig()
 
     # 1. Build Go Compliance Exporter (if Go toolchain is available)
     print(" -> 🐹 Step 1: Checking Go Compliance Exporter CLI...")
@@ -38,6 +51,8 @@ def main():
 
     # 2. Run Lula Validate on oscal-il5.yaml
     print(" -> 🛡️  Step 2: Executing Lula OSCAL Schema Validation...")
+    if os.path.exists("il5-results.yaml"):
+        os.remove("il5-results.yaml")
     rc_lula, _, _ = run_cmd("lula version")
     if rc_lula == 0:
         rc, lula_stdout, lula_stderr = run_cmd("lula validate -f oscal-il5.yaml -o il5-results.yaml")

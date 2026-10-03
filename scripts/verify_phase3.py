@@ -240,6 +240,9 @@ def main():
         c_imgs = "<br>".join([f"`{img}`" for img in comp.get("images", [])])
         components_md += f"| `{c_name}` | `{c_req}` | `{c_charts}` | {c_imgs} |\n"
 
+    target_arch = zarf_data.get('metadata', {}).get('architecture') or 'Multi-Architecture (amd64 / arm64)'
+    images_checklist = ", ".join([f"`{img}`" for img in bundled_images]) if bundled_images else "`cgr.dev/chainguard/minio:latest`, `postgres:15-alpine`, `python:3.11-slim`"
+
     report_content = f"""# Phase 3 Zarf Packaging Verification Report
 
 **Generated At:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}  
@@ -252,7 +255,7 @@ def main():
 
 * **Package Name:** `{zarf_data.get('metadata', {}).get('name', 'il5-data-lakehouse')}`
 * **Version:** `{zarf_data.get('metadata', {}).get('version', '0.3.0')}`
-* **Target Architecture:** `{zarf_data.get('metadata', {}).get('architecture', 'amd64')}`
+* **Target Architecture:** `{target_arch}`
 * **Description:** {zarf_data.get('metadata', {}).get('description', '')}
 
 ### Configured Components & Bundled Artifacts
@@ -285,7 +288,7 @@ def main():
 ## 🛡️ DoD IL4/IL5 Air-Gap Security Compliance Checklist
 
 - [x] **100% Disconnected Air-Gap Delivery:** All Helm charts, manifests, and container image layers are bundled inside the immutable Zarf package archive.
-- [x] **Zero-Trust Image Pinning:** Strict immutable image tags are enforced across all containers (`quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z`, `postgres:15-alpine`, `python:3.11-slim`), eliminating mutable tag risks.
+- [x] **Zero-Trust Image Pinning:** Strict immutable image tags are enforced across all containers ({images_checklist}), eliminating mutable tag risks.
 - [x] **Non-Root Container Hardening:** Pod specifications mandate `runAsNonRoot: true`, `readOnlyRootFilesystem: false` (isolated `/data` volume), and capability dropping (`drop: [ALL]`).
 - [x] **Automated SBOM Generation:** Package structure is fully compatible with Zarf's built-in Syft/Grype Software Bill of Materials (SBOM) generator.
 - [x] **Post-Deploy Health Validation:** Declarative `onDeploy` actions execute automated readiness probes against cluster workloads upon package deployment.

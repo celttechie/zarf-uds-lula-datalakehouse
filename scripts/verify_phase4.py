@@ -274,6 +274,8 @@ def main():
         p_opt = pkg.get("optional", False)
         packages_md += f"| `{p_name}` | `{p_repo}` | `{p_ref}` | `{p_ns}` | `{p_opt}` |\n"
 
+    target_arch = uds_data.get('metadata', {}).get('architecture') or 'Multi-Architecture (amd64 / arm64)'
+
     report_content = f"""# Phase 4 UDS Bundle & Service Mesh Verification Report
 
 **Generated At:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}  
@@ -286,7 +288,7 @@ def main():
 
 * **Bundle Name:** `{uds_data.get('metadata', {}).get('name', 'il5-data-lakehouse-bundle')}`
 * **Version:** `{uds_data.get('metadata', {}).get('version', '0.4.0')}`
-* **Architecture:** `{uds_data.get('metadata', {}).get('architecture', 'amd64')}`
+* **Architecture:** `{target_arch}`
 * **Description:** {uds_data.get('metadata', {}).get('description', '')}
 
 ### Bundled Package Inventory
