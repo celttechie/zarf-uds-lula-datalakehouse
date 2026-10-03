@@ -42,6 +42,8 @@ class TestAccreditationPackageGeneration(unittest.TestCase):
         
         self.assertIn("PASS / APPROVED FOR ATO", content)
         self.assertIn("Continuous Authorization to Operate", content)
+        self.assertIn("Evaluation Source:", content)
+        self.assertIn("Validated Security Controls Satisfied:", content)
         
     @classmethod
     def setUpClass(cls):
