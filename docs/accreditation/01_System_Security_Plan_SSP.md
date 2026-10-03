@@ -5,7 +5,7 @@
 **System Version:** 1.0.0  
 **Security Categorization:** DoD Impact Level 5 (IL5) / NIST SP 800-53 Rev 5 High-Watermark  
 **Authorization Boundary:** Air-Gapped Kubernetes Cluster (Multi-Target Infrastructure Enclave)  
-**Publication Date:** 2026-10-03 01:48:40Z  
+**Publication Date:** 2026-10-03 02:06:08Z  
 
 ---
 
@@ -40,17 +40,20 @@ The **data-lakehouse-medallion** is an air-gapped, zero-trust analytical data pl
 
 ---
 
-## 2. Hardware & Software Inventory
+## 2. Hardware & Infrastructure Inventory (Live Target: Active)
 
-| Component Name | Category | Version / Spec | Purpose & Security Role |
+* **Target Introspection Mode:** `LIVE_CLUSTER_DISCOVERY`
+* **Detected Active Nodes:** 1 node(s) inspected via Kubernetes API
+
+| Component Name | Target Category | Architecture / OS / Spec | Purpose & Security Role |
 | :--- | :--- | :--- | :--- |
-| **Dell Precision T5600** | Bare-Metal Host | 2x Intel Xeon, 64GB ECC RAM | Hypervisor host executing isolated hardware virtualization |
-| **K3s / RKE2** | Container Engine | v1.28.8+k3s1 (containerd) | CIS-hardened Kubernetes orchestration layer |
-| **MinIO** | Object Storage | RELEASE.2024-01-16T16-07-38Z | S3-compatible immutable raw object storage |
-| **DuckDB / PyArrow** | Analytical Engine | 1.5.5 / 25.0.1 | Embedded in-process vectorized SQL execution (no TCP daemon) |
-| **PostgreSQL** | Relational DB | 15-alpine | ACID-compliant Gold analytical serving warehouse |
+| **Node: orangepi5pro** (`control-plane,master`) | Active Cluster Host | `arm64` / Armbian_community 26.11.0-trunk.52 resolute (Kernel: `6.1.172-vendor-rk35xx`) | Active target node executing container runtime (`containerd://1.7.20-k3s1`) |
+| **Kubernetes (Kubelet)** | Orchestration Engine | `v1.30.4+k3s1` | CIS-hardened, air-gapped node agent orchestrating pods |
+| **MinIO Object Store** | S3 Data Layer | `cgr.dev/chainguard/minio:latest` | S3-compatible immutable raw object storage (Bronze/Silver) |
+| **DuckDB / PyArrow** | Analytical Engine | Python 3.11 Standard Lib / In-Process | Embedded in-process vectorized ETL execution (no TCP daemon) |
+| **PostgreSQL** | Relational DB | `postgres:15-alpine` | ACID-compliant Gold analytical serving warehouse |
 | **Istio Service Mesh** | Cryptographic Proxy | 1.20+ (UDS Core) | Enforces STRICT mTLS and SPIFFE workload identity |
-| **Zarf / UDS** | Package Delivery | 0.32.5 / 0.13.0 | Cryptographic air-gapped package validation and Syft SBOM |
+| **Zarf / UDS** | Package Delivery | 0.85.0 / 0.37.0 | Cryptographic air-gapped package validation and Syft SBOM |
 
 ---
 

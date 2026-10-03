@@ -74,10 +74,90 @@ def load_oscal():
     with open(OSCAL_PATH, "r") as f:
         return yaml.safe_load(f)
 
+def discover_target_environment():
+    """
+    Introspects the target Kubernetes cluster if available via kubectl to extract
+    dynamic node inventory, architecture, OS, kernel, and runtime versions.
+    Falls back to an architecture-agnostic multi-target baseline if no cluster is reachable.
+    """
+    try:
+        proc = subprocess.run(
+            ["kubectl", "get", "nodes", "-o", "json"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if proc.returncode == 0:
+            nodes_data = json.loads(proc.stdout)
+            items = nodes_data.get("items", [])
+            if items:
+                nodes_info = []
+                for n in items:
+                    name = n.get("metadata", {}).get("name", "k8s-node")
+                    labels = n.get("metadata", {}).get("labels", {})
+                    roles = [k.split("/")[-1] for k in labels if "node-role.kubernetes.io" in k]
+                    role_str = ",".join(roles) if roles else "worker"
+                    node_info = n.get("status", {}).get("nodeInfo", {})
+                    arch = node_info.get("architecture", "unknown")
+                    os_img = node_info.get("osImage", "unknown")
+                    kernel = node_info.get("kernelVersion", "unknown")
+                    kubelet = node_info.get("kubeletVersion", "unknown")
+                    runtime = node_info.get("containerRuntimeVersion", "unknown")
+                    nodes_info.append({
+                        "name": name,
+                        "role": role_str,
+                        "arch": arch,
+                        "os": os_img,
+                        "kernel": kernel,
+                        "kubelet": kubelet,
+                        "runtime": runtime
+                    })
+                return {"live": True, "nodes": nodes_info}
+    except Exception:
+        pass
+    return {"live": False, "nodes": []}
+
 def generate_ssp(oscal_data, timestamp_str):
     comp_def = oscal_data["component-definition"]
     comp = comp_def["components"][0]
     
+    env_data = discover_target_environment()
+    if env_data["live"]:
+        inventory_rows = ""
+        for n in env_data["nodes"]:
+            inventory_rows += f"| **Node: {n['name']}** (`{n['role']}`) | Active Cluster Host | `{n['arch']}` / {n['os']} (Kernel: `{n['kernel']}`) | Active target node executing container runtime (`{n['runtime']}`) |\n"
+            inventory_rows += f"| **Kubernetes (Kubelet)** | Orchestration Engine | `{n['kubelet']}` | CIS-hardened, air-gapped node agent orchestrating pods |\n"
+        inventory_section = f"""## 2. Hardware & Infrastructure Inventory (Live Target: Active)
+
+* **Target Introspection Mode:** `LIVE_CLUSTER_DISCOVERY`
+* **Detected Active Nodes:** {len(env_data['nodes'])} node(s) inspected via Kubernetes API
+
+| Component Name | Target Category | Architecture / OS / Spec | Purpose & Security Role |
+| :--- | :--- | :--- | :--- |
+{inventory_rows}| **MinIO Object Store** | S3 Data Layer | `cgr.dev/chainguard/minio:latest` | S3-compatible immutable raw object storage (Bronze/Silver) |
+| **DuckDB / PyArrow** | Analytical Engine | Python 3.11 Standard Lib / In-Process | Embedded in-process vectorized ETL execution (no TCP daemon) |
+| **PostgreSQL** | Relational DB | `postgres:15-alpine` | ACID-compliant Gold analytical serving warehouse |
+| **Istio Service Mesh** | Cryptographic Proxy | 1.20+ (UDS Core) | Enforces STRICT mTLS and SPIFFE workload identity |
+| **Zarf / UDS** | Package Delivery | 0.85.0 / 0.37.0 | Cryptographic air-gapped package validation and Syft SBOM |
+"""
+    else:
+        inventory_section = """## 2. Hardware & Infrastructure Inventory (Multi-Target Architecture Baseline)
+
+* **Target Introspection Mode:** `MULTI_TARGET_CAPABILITY_MATRIX` (Offline / Architecture-Agnostic)
+
+| Target Substrate / Component | Target Category | Architecture / Spec | Purpose & Security Role |
+| :--- | :--- | :--- | :--- |
+| **Tactical Edge SBC Baseline** | Bare-Metal Edge Node | ARM64 / ARMv8 (e.g., Orange Pi 5 Pro / RK3588S, RPi 5) | Disconnected physical tactical edge computing node in forward enclaves |
+| **Nested Sandbox VM Baseline** | Local Hypervisor Host | x86_64 Libvirt / KVM (e.g., Dell Precision T5600, Xeon) | Hypervisor host executing isolated hardware virtualization |
+| **Cloud Target Baseline** | Ephemeral / Managed Cloud | AWS EC2 Spot K3s (`c6a.xlarge`) / AWS EKS 1.30+ (`gp3`) | Ephemeral CI/CD validation and scalable cloud infrastructure |
+| **K3s / RKE2 Orchestrator** | Container Engine | v1.30.4+k3s1 (containerd) | CIS-hardened, air-gapped Kubernetes orchestration layer |
+| **MinIO Object Store** | S3 Data Layer | `cgr.dev/chainguard/minio:latest` | S3-compatible immutable raw object storage (Bronze/Silver) |
+| **DuckDB / PyArrow** | Analytical Engine | Python 3.11 Standard Lib / In-Process | Embedded in-process vectorized ETL execution (no TCP daemon) |
+| **PostgreSQL** | Relational DB | `postgres:15-alpine` | ACID-compliant Gold analytical serving warehouse |
+| **Istio Service Mesh** | Cryptographic Proxy | 1.20+ (UDS Core) | Enforces STRICT mTLS and SPIFFE workload identity |
+| **Zarf / UDS** | Package Delivery | 0.85.0 / 0.37.0 | Cryptographic air-gapped package validation and Syft SBOM |
+"""
+
     ssp = f"""# System Security Plan (SSP): DoD IL5 Medallion Data Lakehouse
 
 **Document Identifier:** SSP-IL5-LAKEHOUSE-001  
@@ -120,18 +200,7 @@ The **{comp['title']}** is an air-gapped, zero-trust analytical data platform en
 
 ---
 
-## 2. Hardware & Software Inventory
-
-| Component Name | Category | Version / Spec | Purpose & Security Role |
-| :--- | :--- | :--- | :--- |
-| **Dell Precision T5600** | Bare-Metal Host | 2x Intel Xeon, 64GB ECC RAM | Hypervisor host executing isolated hardware virtualization |
-| **K3s / RKE2** | Container Engine | v1.28.8+k3s1 (containerd) | CIS-hardened Kubernetes orchestration layer |
-| **MinIO** | Object Storage | RELEASE.2024-01-16T16-07-38Z | S3-compatible immutable raw object storage |
-| **DuckDB / PyArrow** | Analytical Engine | 1.5.5 / 25.0.1 | Embedded in-process vectorized SQL execution (no TCP daemon) |
-| **PostgreSQL** | Relational DB | 15-alpine | ACID-compliant Gold analytical serving warehouse |
-| **Istio Service Mesh** | Cryptographic Proxy | 1.20+ (UDS Core) | Enforces STRICT mTLS and SPIFFE workload identity |
-| **Zarf / UDS** | Package Delivery | 0.32.5 / 0.13.0 | Cryptographic air-gapped package validation and Syft SBOM |
-
+{inventory_section}
 ---
 
 ## 3. NIST SP 800-53 Rev 5 Control Implementation Matrix
