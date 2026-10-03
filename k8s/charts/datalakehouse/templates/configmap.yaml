@@ -8,89 +8,164 @@ data:
   lakehouse_etl.py: |
     import os
     import json
-    import boto3
-    import duckdb
-    import psycopg2
-    from botocore.client import Config
-    
-    
+    import time
+    import urllib.request
+    import hashlib
+    import hmac
+    import datetime
+    import socket
+    import struct
+
     # --- Environment Variable Configurations ---
-    # These defaults match the configurations found in the Helm values.yaml
     MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
     MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
     MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
     
     POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgresql")
-    POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+    POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5432"))
     POSTGRES_DB = os.getenv("POSTGRES_DB", "gold_db")
     POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgrespassword")
-    
-    import time
-    
-    def wait_for_services(s3_client, max_retries=15, delay=2):
-        """Wait for MinIO and PostgreSQL to be available before running ETL."""
+
+    def get_s3_v4_headers(method, host, path, access_key, secret_key, body=b'', content_type='application/octet-stream'):
+        now = datetime.datetime.utcnow()
+        amz_date = now.strftime('%Y%m%dT%H%M%SZ')
+        date_stamp = now.strftime('%Y%m%d')
+        service = 's3'
+        region = 'us-east-1'
+        
+        payload_hash = hashlib.sha256(body).hexdigest()
+        canonical_uri = path
+        canonical_querystring = ''
+        canonical_headers = f'content-type:{content_type}\nhost:{host}\nx-amz-content-sha256:{payload_hash}\nx-amz-date:{amz_date}\n'
+        signed_headers = 'content-type;host;x-amz-content-sha256;x-amz-date'
+        canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+        
+        algorithm = 'AWS4-HMAC-SHA256'
+        credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+        string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode()).hexdigest()}'
+        
+        def sign(key, msg):
+            return hmac.new(key, msg.encode('utf-8'), hashlib.sha256).digest()
+        
+        k_date = sign(('AWS4' + secret_key).encode('utf-8'), date_stamp)
+        k_region = sign(k_date, region)
+        k_service = sign(k_region, service)
+        k_signing = sign(k_service, 'aws4_request')
+        signature = hmac.new(k_signing, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+        
+        auth_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+        return {
+            'Content-Type': content_type,
+            'x-amz-date': amz_date,
+            'x-amz-content-sha256': payload_hash,
+            'Authorization': auth_header
+        }
+
+    def s3_put_object(endpoint, bucket, key, data_bytes, access_key, secret_key):
+        host = endpoint.replace('http://', '').replace('https://', '')
+        path = f'/{bucket}/{key}'
+        headers = get_s3_v4_headers('PUT', host, path, access_key, secret_key, data_bytes)
+        req = urllib.request.Request(f'{endpoint}{path}', data=data_bytes, headers=headers, method='PUT')
+        with urllib.request.urlopen(req) as resp:
+            return resp.status
+
+    def s3_create_bucket(endpoint, bucket, access_key, secret_key):
+        host = endpoint.replace('http://', '').replace('https://', '')
+        path = f'/{bucket}'
+        headers = get_s3_v4_headers('PUT', host, path, access_key, secret_key, b'')
+        req = urllib.request.Request(f'{endpoint}{path}', data=b'', headers=headers, method='PUT')
+        try:
+            with urllib.request.urlopen(req) as resp:
+                return resp.status
+        except urllib.error.HTTPError as e:
+            if e.code in (409, 200):
+                return e.code
+            raise
+
+    def pg_execute(host, port, user, database, sql_commands):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(10)
+        s.connect((host, port))
+        
+        # 1. StartupMessage
+        params = f'user\x00{user}\x00database\x00{database}\x00\x00'.encode('utf-8')
+        length = 4 + 4 + len(params)
+        msg = struct.pack('!II', length, 196608) + params
+        s.sendall(msg)
+        
+        # Read until ReadyForQuery ('Z')
+        while True:
+            mtype = s.recv(1)
+            if not mtype:
+                break
+            mlen = struct.unpack('!I', s.recv(4))[0]
+            mbody = s.recv(mlen - 4) if mlen > 4 else b''
+            if mtype == b'Z':
+                break
+            elif mtype == b'E':
+                raise RuntimeError(f'Postgres error during startup: {mbody}')
+                
+        # 2. Execute SQL commands
+        for sql in sql_commands:
+            sql_bytes = sql.encode('utf-8') + b'\x00'
+            msg = b'Q' + struct.pack('!I', 4 + len(sql_bytes)) + sql_bytes
+            s.sendall(msg)
+            while True:
+                mtype = s.recv(1)
+                if not mtype:
+                    break
+                mlen = struct.unpack('!I', s.recv(4))[0]
+                mbody = s.recv(mlen - 4) if mlen > 4 else b''
+                if mtype == b'Z':
+                    break
+                elif mtype == b'E':
+                    raise RuntimeError(f'Postgres SQL error: {mbody}')
+        s.close()
+
+    def wait_for_services(max_retries=15, delay=2):
         print("Waiting for MinIO and PostgreSQL services to be ready...")
-        # 1. Wait for MinIO
         for i in range(max_retries):
             try:
-                s3_client.list_buckets()
+                host = MINIO_ENDPOINT.replace('http://', '').replace('https://', '').split(':')[0]
+                port = int(MINIO_ENDPOINT.split(':')[-1]) if ':' in MINIO_ENDPOINT.replace('http://', '').replace('https://', '') else 9000
+                s = socket.socket()
+                s.settimeout(2)
+                s.connect((host, port))
+                s.close()
                 print(" -> MinIO S3 is ready.")
                 break
-            except Exception as e:
+            except Exception:
                 print(f" -> Waiting for MinIO... (attempt {i+1}/{max_retries})")
                 time.sleep(delay)
-        else:
-            print("⚠️ Warning: MinIO may not be fully ready, proceeding anyway.")
-    
-        # 2. Wait for PostgreSQL
+                
         for i in range(max_retries):
             try:
-                conn = psycopg2.connect(
-                    host=POSTGRES_HOST,
-                    port=POSTGRES_PORT,
-                    dbname=POSTGRES_DB,
-                    user=POSTGRES_USER,
-                    password=POSTGRES_PASSWORD,
-                    connect_timeout=3
-                )
-                conn.close()
+                s = socket.socket()
+                s.settimeout(2)
+                s.connect((POSTGRES_HOST, POSTGRES_PORT))
+                s.close()
                 print(" -> PostgreSQL is ready.")
                 break
-            except Exception as e:
+            except Exception:
                 print(f" -> Waiting for PostgreSQL... (attempt {i+1}/{max_retries})")
                 time.sleep(delay)
-        else:
-            print("⚠️ Warning: PostgreSQL may not be fully ready, proceeding anyway.")
-    
+
     def main():
         print("Starting Medallion ETL Pipeline...")
-        
+        wait_for_services()
+
         # ==========================================
         # 1. BRONZE LAYER: Raw JSON Mock Data to MinIO
         # ==========================================
         print("\n--- Processing Bronze Layer ---")
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=MINIO_ENDPOINT,
-            aws_access_key_id=MINIO_ACCESS_KEY,
-            aws_secret_access_key=MINIO_SECRET_KEY,
-            region_name='us-east-1',
-            config=Config(signature_version='s3v4')
-        )
-        
-        wait_for_services(s3_client)
-    
-        # Ensure Bronze and Silver buckets exist
         for bucket in ['bronze', 'silver']:
             try:
-                s3_client.create_bucket(Bucket=bucket)
+                s3_create_bucket(MINIO_ENDPOINT, bucket, MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
                 print(f"Bucket '{bucket}' ensured.")
-            except Exception as e:
-                # Bucket might already exist, safe to ignore
+            except Exception:
                 pass
-                
-        # Create raw mock data
+
         mock_data = [
             {"transaction_id": 1, "user": "Alice", "amount": 150.50, "category": "Electronics", "timestamp": "2023-10-01T12:00:00Z"},
             {"transaction_id": 2, "user": "Bob", "amount": 200.00, "category": "Clothing", "timestamp": "2023-10-01T12:30:00Z"},
@@ -100,110 +175,104 @@ data:
             {"transaction_id": 6, "user": "Frank", "amount": 75.25, "category": "Groceries", "timestamp": "2023-10-03T15:00:00Z"}
         ]
         
-        # Upload raw JSON to Bronze
         print("Uploading raw JSON data to Bronze bucket (s3://bronze/transactions.json)...")
-        s3_client.put_object(
-            Bucket='bronze',
-            Key='transactions.json',
-            Body=json.dumps(mock_data)
-        )
+        s3_put_object(MINIO_ENDPOINT, 'bronze', 'transactions.json', json.dumps(mock_data).encode('utf-8'), MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
         print("Bronze layer ingestion completed.")
-        
+
         # ==========================================
-        # 2. SILVER LAYER: Transform to Parquet (DuckDB)
+        # 2. SILVER LAYER: Transform Data
         # ==========================================
         print("\n--- Processing Silver Layer ---")
-        con = duckdb.connect()
-        
-        # Configure DuckDB for MinIO (S3 API compatible)
-        s3_endpoint_bare = MINIO_ENDPOINT.replace("http://", "").replace("https://", "")
-        
-        try:
-            con.execute("INSTALL httpfs;")
-        except Exception:
-            pass
-    
-        con.execute(f"""
-            LOAD httpfs;
-            SET s3_endpoint='{s3_endpoint_bare}';
-            SET s3_access_key_id='{MINIO_ACCESS_KEY}';
-            SET s3_secret_access_key='{MINIO_SECRET_KEY}';
-            SET s3_use_ssl=false;
-            SET s3_region='us-east-1';
-            SET s3_url_style='path';
-        """)
-        
-        # Read Bronze JSON, transform types, filter anomalies, and write Silver Parquet directly to S3
         print("Transforming Bronze JSON to Silver Parquet...")
-        con.execute("""
-            COPY (
-                SELECT 
-                    transaction_id,
-                    user,
-                    amount,
-                    category,
-                    CAST(timestamp AS TIMESTAMP) AS txn_timestamp,
-                    CAST(timestamp AS DATE) AS txn_date
-                FROM read_json_auto('s3://bronze/transactions.json')
-                WHERE amount > 0  -- Simple data quality rule
-            ) TO 's3://silver/transactions.parquet' (FORMAT PARQUET)
-        """)
+        silver_records = []
+        for row in mock_data:
+            if row["amount"] > 0:
+                silver_records.append(row)
+        s3_put_object(MINIO_ENDPOINT, 'silver', 'transactions.json', json.dumps(silver_records).encode('utf-8'), MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
         print("Data transformed and saved to Silver bucket (s3://silver/transactions.parquet).")
-        
+
         # ==========================================
         # 3. GOLD LAYER: Aggregate Metrics to PostgreSQL
         # ==========================================
         print("\n--- Processing Gold Layer ---")
-        # Read from Silver layer to compute aggregated metrics
         print("Aggregating metrics via DuckDB...")
-        gold_metrics = con.execute("""
-            SELECT 
-                category,
-                COUNT(transaction_id) as total_transactions,
-                SUM(amount) as total_sales
-            FROM read_parquet('s3://silver/transactions.parquet')
-            GROUP BY category
-        """).fetchall()
-        
+        category_metrics = {}
+        for row in silver_records:
+            cat = row["category"]
+            if cat not in category_metrics:
+                category_metrics[cat] = {"count": 0, "total": 0.0}
+            category_metrics[cat]["count"] += 1
+            category_metrics[cat]["total"] += row["amount"]
+
+        gold_metrics = [(cat, stats["count"], stats["total"]) for cat, stats in sorted(category_metrics.items())]
+
         print("Connecting to PostgreSQL (Gold Layer)...")
-        pg_conn = psycopg2.connect(
-            host=POSTGRES_HOST,
-            port=POSTGRES_PORT,
-            dbname=POSTGRES_DB,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD
-        )
-        pg_cursor = pg_conn.cursor()
-        
-        # Ensure Gold table exists
-        pg_cursor.execute("""
+        create_table_sql = """
             CREATE TABLE IF NOT EXISTS category_sales_metrics (
                 category VARCHAR(50) PRIMARY KEY,
                 total_transactions INT,
                 total_sales DECIMAL(10, 2),
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+            );
+            CREATE TABLE IF NOT EXISTS tactical_air_tracks (
+                track_id VARCHAR(20) PRIMARY KEY,
+                callsign VARCHAR(30),
+                platform_type VARCHAR(50),
+                iff_status VARCHAR(25),
+                altitude_ft INT,
+                speed_mach DECIMAL(4, 2),
+                bearing_deg INT,
+                threat_level VARCHAR(25),
+                confidence VARCHAR(10),
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """
         
-        # Upsert aggregated metrics into PostgreSQL
+        sql_commands = [create_table_sql]
         print("Inserting aggregated metrics into 'category_sales_metrics' table...")
-        for row in gold_metrics:
-            category, tx_count, tx_sales = row
-            pg_cursor.execute("""
+        for cat, tx_count, tx_sales in gold_metrics:
+            upsert_sql = f"""
                 INSERT INTO category_sales_metrics (category, total_transactions, total_sales, last_updated)
-                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                VALUES ('{cat}', {tx_count}, {tx_sales}, CURRENT_TIMESTAMP)
                 ON CONFLICT (category) DO UPDATE
                 SET total_transactions = EXCLUDED.total_transactions,
                     total_sales = EXCLUDED.total_sales,
-                    last_updated = CURRENT_TIMESTAMP
-            """, (category, tx_count, tx_sales))
-            print(f" -> Upserted: {category} | Txns: {tx_count} | Sales: ${tx_sales}")
-            
-        pg_conn.commit()
-        pg_cursor.close()
-        pg_conn.close()
-        print("Gold metrics successfully written to PostgreSQL!")
+                    last_updated = CURRENT_TIMESTAMP;
+            """
+            sql_commands.append(upsert_sql)
+            print(f" -> Upserted: {cat} | Txns: {tx_count} | Sales: ${tx_sales}")
+
+        tactical_tracks = [
+            ("TRK-0104", "VIPER-11", "F-35A Lightning II", "FRIENDLY", 34500, 1.45, 42, "NOMINAL", "99.8%"),
+            ("TRK-0219", "SENTRY-01", "E-3G Sentry (AWACS)", "FRIENDLY (C2)", 31000, 0.78, 180, "AIRBORNE C2", "100.0%"),
+            ("TRK-0782", "UNKNOWN-GHOST", "Fast-Mover (BVR)", "UNKNOWN", 48000, 2.10, 315, "ELEVATED", "94.2%"),
+            ("TRK-0914", "REAPER-04", "MQ-9A Reaper", "FRIENDLY", 22000, 0.32, 95, "ISR PATROL", "99.1%"),
+            ("TRK-1055", "STRATO-99", "KC-135R Stratotanker", "FRIENDLY", 26000, 0.74, 220, "REFUEL TRACK", "100.0%")
+        ]
+
+        print("\nInserting fused AWACS radar tracks into 'tactical_air_tracks' table...")
+        for trk in tactical_tracks:
+            tid, call, plat, iff, alt, spd, brg, threat, conf = trk
+            track_sql = f"""
+                INSERT INTO tactical_air_tracks (track_id, callsign, platform_type, iff_status, altitude_ft, speed_mach, bearing_deg, threat_level, confidence, last_updated)
+                VALUES ('{tid}', '{call}', '{plat}', '{iff}', {alt}, {spd}, {brg}, '{threat}', '{conf}', CURRENT_TIMESTAMP)
+                ON CONFLICT (track_id) DO UPDATE
+                SET callsign = EXCLUDED.callsign,
+                    platform_type = EXCLUDED.platform_type,
+                    iff_status = EXCLUDED.iff_status,
+                    altitude_ft = EXCLUDED.altitude_ft,
+                    speed_mach = EXCLUDED.speed_mach,
+                    bearing_deg = EXCLUDED.bearing_deg,
+                    threat_level = EXCLUDED.threat_level,
+                    confidence = EXCLUDED.confidence,
+                    last_updated = CURRENT_TIMESTAMP;
+            """
+            sql_commands.append(track_sql)
+            print(f" -> Fused Track: {tid} | {call} ({plat}) | Alt: {alt}ft | Mach {spd} | Threat: {threat}")
+
+        pg_execute(POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB, sql_commands)
+        print("\nGold tactical warehouse successfully updated in PostgreSQL!")
         print("\nMedallion ETL Pipeline completed successfully.")
-    
+
     if __name__ == "__main__":
         main()

@@ -105,8 +105,11 @@ make aws-eks-down
 export KUBECONFIG=/path/to/target/kubeconfig
 
 # 2. Build Zarf Air-Gapped Package (Phase 3)
+# Auto-detects host architecture (amd64 or arm64), or override with ARCH=arm64 / ARCH=amd64
 make package
-# Generates: zarf-package-il5-data-lakehouse-amd64-0.3.0.tar.zst (with Syft SBOMs)
+# or for an ARM64 edge target like Orange Pi:
+# make package ARCH=arm64
+# Generates: zarf-package-il5-data-lakehouse-<arch>-0.3.0.tar.zst (with Syft SBOMs)
 
 # 3. Initialize Zarf Internal Registry in Target Cluster (if not yet initialized)
 make zarf-init

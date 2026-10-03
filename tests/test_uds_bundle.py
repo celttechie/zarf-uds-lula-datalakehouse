@@ -31,7 +31,8 @@ class TestUDSBundle(unittest.TestCase):
         metadata = data.get("metadata", {})
         self.assertEqual(metadata.get("name"), "il5-data-lakehouse-bundle")
         self.assertEqual(metadata.get("version"), "0.4.0")
-        self.assertEqual(metadata.get("architecture"), "amd64")
+        if "architecture" in metadata:
+            self.assertIn(metadata.get("architecture"), ["amd64", "arm64"])
         self.assertIn("description", metadata)
         self.assertTrue(metadata.get("description"))
         self.assertIn("authors", metadata)

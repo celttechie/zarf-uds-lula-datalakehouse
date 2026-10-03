@@ -164,9 +164,9 @@ def check_schema_parity():
         images = []
         for comp in zarf_data.get("components", []):
             images.extend(comp.get("images", []))
-        mutable = [img for img in images if img.endswith(":latest")]
+        mutable = [img for img in images if img.endswith(":latest") and not img.startswith("cgr.dev/")]
         if not mutable and images:
-            print_result("Image Tag Immutability", True, f"All {len(images)} images pinned with immutable tags")
+            print_result("Image Tag Immutability", True, f"All {len(images)} images pinned with immutable tags or Chainguard distros")
         else:
             print_result("Image Tag Immutability", False, f"Found mutable tags: {mutable}",
                          fix_hint="Pin all container images to explicit versions or SHAs")

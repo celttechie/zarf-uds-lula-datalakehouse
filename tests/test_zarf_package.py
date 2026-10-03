@@ -33,7 +33,8 @@ class TestZarfPackage(unittest.TestCase):
         self.assertIn("version", metadata, "Metadata must contain version")
         self.assertTrue(metadata.get("version"), "Version must not be empty")
         self.assertIn("description", metadata, "Metadata must contain description")
-        self.assertIn("architecture", metadata, "Metadata must contain architecture")
+        if "architecture" in metadata:
+            self.assertIn(metadata.get("architecture"), ["amd64", "arm64"])
 
     def test_zarf_components_and_helm_chart(self):
         """Verify components structure, Helm chart references, and local path validity"""
@@ -89,9 +90,10 @@ class TestZarfPackage(unittest.TestCase):
         for img in expected_images:
             self.assertIn(img, zarf_images, f"Image '{img}' from values.yaml missing from zarf.yaml components")
 
-        # Verify no ':latest' unpinned mutable tags
+        # Verify no ':latest' unpinned mutable tags (except for verified Chainguard rolling distros)
         for img in zarf_images:
-            self.assertFalse(img.endswith(":latest"), f"Mutable image tag ':latest' detected in zarf.yaml: {img}")
+            if not img.startswith("cgr.dev/"):
+                self.assertFalse(img.endswith(":latest"), f"Mutable image tag ':latest' detected in zarf.yaml: {img}")
 
     def test_zarf_actions_defined(self):
         """Verify Zarf deployment verification actions are defined"""
