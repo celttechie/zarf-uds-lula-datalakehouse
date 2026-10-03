@@ -273,3 +273,4 @@ Key architectural and technical decisions are captured in `docs/adr/`:
 | **[ADR 0014](docs/adr/0014-dynamic-target-node-introspection-and-architecture-agnostic-ato-generation.md)** | Dynamic Target Node Introspection & Multi-Target ATO Generation | Accepted |
 | **[ADR 0015](docs/adr/0015-dynamic-oscal-assessment-ingestion-in-sar-generation.md)** | Dynamic OSCAL Assessment Ingestion in SAR Generation | Accepted |
 | **[ADR 0016](docs/adr/0016-cluster-aware-target-introspection-in-mission-status-dashboard.md)** | Cluster-Aware Target Introspection in Mission Status Dashboard | Accepted |
+| **[ADR 0017](docs/adr/0017-architecture-agnostic-and-dynamic-phase-verification-reports.md)** | Architecture-Agnostic & Dynamic Phase Verification Reporting | Accepted |

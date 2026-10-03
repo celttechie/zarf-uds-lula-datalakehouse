@@ -1,6 +1,6 @@
 # Phase 4 UDS Bundle & Service Mesh Verification Report
 
-**Generated At:** 2026-10-02 20:48:39 UTC  
+**Generated At:** 2026-10-02 22:23:29 UTC  
 **Overall Status:** `PASSED`  
 **Target Bundle:** `il5-data-lakehouse-bundle` (v0.4.0)
 
@@ -10,7 +10,7 @@
 
 * **Bundle Name:** `il5-data-lakehouse-bundle`
 * **Version:** `0.4.0`
-* **Architecture:** `amd64`
+* **Architecture:** `Multi-Architecture (amd64 / arm64)`
 * **Description:** Air-Gapped DoD IL4/IL5 Medallion Data Lakehouse & Zero-Trust Service Mesh UDS Bundle
 
 ### Bundled Package Inventory
@@ -39,7 +39,7 @@
 | **Istio PeerAuthentication (mTLS STRICT)** | `k8s/mesh/peer-authentication.yaml` | PeerAuthentication with STRICT mTLS in datalakehouse ns | Enforced (mode: STRICT, namespace: datalakehouse) | `PASS` |
 | **Istio Zero-Trust AuthorizationPolicy** | `k8s/mesh/authorization-policy.yaml` | ALLOW policy with ports 9000, 9001, 5432 & service principals | Enforced (action: ALLOW, secured ports: ['5432', '9000', '9001']) | `PASS` |
 | **UDS Package & Component Compatibility** | `uds-bundle.yaml / zarf.yaml` | Component overrides match zarf.yaml definitions | Overrides valid for components: ['datalakehouse-core'] | `PASS` |
-| **Unit & Integration Test Suite** | `tests/ (Phase 2 + 3 + 4)` | All unit tests pass cleanly | 28 tests executed, all passed | `PASS` |
+| **Unit & Integration Test Suite** | `tests/ (Phase 2 + 3 + 4)` | All unit tests pass cleanly | 29 tests executed, all passed | `PASS` |
 
 ---
 
@@ -71,9 +71,9 @@ Inserting aggregated metrics into 'category_sales_metrics' table...
 Gold metrics successfully written to PostgreSQL!
 
 Medallion ETL Pipeline completed successfully.
-............................
+.............................
 ----------------------------------------------------------------------
-Ran 28 tests in 0.069s
+Ran 29 tests in 0.686s
 
 OK
 ```
