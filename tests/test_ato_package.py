@@ -42,6 +42,26 @@ class TestAccreditationPackageGeneration(unittest.TestCase):
         
         self.assertIn("PASS / APPROVED FOR ATO", content)
         self.assertIn("Continuous Authorization to Operate", content)
+        
+    @classmethod
+    def setUpClass(cls):
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        generator_script = os.path.join(repo_root, "scripts", "generate_ato_package.py")
+        subprocess.run(["python3", generator_script], capture_output=True, text=True, cwd=repo_root)
+
+    def test_ssp_contains_dynamic_or_multi_target_inventory(self):
+        ssp_path = os.path.join(self.accreditation_dir, "01_System_Security_Plan_SSP.md")
+        with open(ssp_path, "r") as f:
+            content = f.read()
+        
+        # SSP should contain either live cluster discovery or multi-target matrix
+        has_inventory = (
+            "LIVE_CLUSTER_DISCOVERY" in content or
+            "MULTI_TARGET_CAPABILITY_MATRIX" in content
+        )
+        self.assertTrue(has_inventory, "SSP missing dynamic or multi-target hardware inventory header")
+        self.assertIn("MinIO Object Store", content)
+        self.assertIn("PostgreSQL", content)
 
 if __name__ == "__main__":
     unittest.main()

@@ -270,3 +270,4 @@ Key architectural and technical decisions are captured in `docs/adr/`:
 | **[ADR 0011](docs/adr/0011-automated-accreditation-artifact-generation.md)** | Automated Accreditation Artifact Generation | Accepted |
 | **[ADR 0012](docs/adr/0012-aws-cloud-deployment-targets.md)** | AWS Cloud Deployment Targets (EC2 K3s & Managed EKS) | Accepted |
 | **[ADR 0013](docs/adr/0013-automated-preflight-diagnostics-and-schema-parity-guardrails.md)** | Automated Preflight Diagnostics & Schema Parity Guardrails | Accepted |
+| **[ADR 0014](docs/adr/0014-dynamic-target-node-introspection-and-architecture-agnostic-ato-generation.md)** | Dynamic Target Node Introspection & Multi-Target ATO Generation | Accepted |
