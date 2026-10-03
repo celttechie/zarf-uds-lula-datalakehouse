@@ -126,7 +126,7 @@ bundle-create: ## Create UDS bundle archive (.tar.zst) for target ARCH (default:
 
 bundle-deploy: ## Deploy UDS bundle to target Kubernetes cluster
 	@echo "🚀 Deploying UDS Bundle..."
-	uds deploy --confirm
+	uds deploy $$(ls -t uds-bundle-*.tar.zst 2>/dev/null | head -n 1) --confirm
 
 deploy: zarf-deploy ## Deploy Data Lakehouse workloads into target K8s cluster
 

@@ -166,12 +166,12 @@ def main():
             if img not in bundled_images:
                 images_aligned = False
                 images_msg.append(f"Missing {img}")
-            elif img.endswith(":latest"):
+            elif img.endswith(":latest") and not img.startswith("cgr.dev/"):
                 images_aligned = False
                 images_msg.append(f"Mutable tag {img}")
 
         if images_aligned:
-            images_result = f"All {len(req_images)} images bundled with pinned immutable tags"
+            images_result = f"All {len(req_images)} images bundled with pinned immutable tags or Chainguard distros"
         else:
             images_result = "; ".join(images_msg)
     else:

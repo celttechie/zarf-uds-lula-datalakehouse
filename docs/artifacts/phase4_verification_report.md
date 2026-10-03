@@ -1,6 +1,6 @@
 # Phase 4 UDS Bundle & Service Mesh Verification Report
 
-**Generated At:** 2026-09-15 17:33:37 UTC  
+**Generated At:** 2026-10-02 20:48:39 UTC  
 **Overall Status:** `PASSED`  
 **Target Bundle:** `il5-data-lakehouse-bundle` (v0.4.0)
 
@@ -34,7 +34,7 @@
 
 | Check | Target | Expected | Result | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **UDS Bundle Specification (uds-bundle.yaml)** | `uds-bundle.yaml` | UDSBundle (il5-data-lakehouse-bundle v0.4.0) | Valid (version: 0.4.0, arch: amd64, 1 packages) | `PASS` |
+| **UDS Bundle Specification (uds-bundle.yaml)** | `uds-bundle.yaml` | UDSBundle (il5-data-lakehouse-bundle v0.4.0) | Valid (version: 0.4.0, arch: N/A, 1 packages) | `PASS` |
 | **UDS Runtime Configuration (uds-config.yaml)** | `uds-config.yaml` | Valid variables settings with local-path & IL5 baseline | Configured (namespace: datalakehouse, security: il5-strict, storage: local-path) | `PASS` |
 | **Istio PeerAuthentication (mTLS STRICT)** | `k8s/mesh/peer-authentication.yaml` | PeerAuthentication with STRICT mTLS in datalakehouse ns | Enforced (mode: STRICT, namespace: datalakehouse) | `PASS` |
 | **Istio Zero-Trust AuthorizationPolicy** | `k8s/mesh/authorization-policy.yaml` | ALLOW policy with ports 9000, 9001, 5432 & service principals | Enforced (action: ALLOW, secured ports: ['5432', '9000', '9001']) | `PASS` |
@@ -71,10 +71,9 @@ Inserting aggregated metrics into 'category_sales_metrics' table...
 Gold metrics successfully written to PostgreSQL!
 
 Medallion ETL Pipeline completed successfully.
-........go: downloading gopkg.in/yaml.v3 v3.0.1
-....................
+............................
 ----------------------------------------------------------------------
-Ran 28 tests in 3.838s
+Ran 28 tests in 0.069s
 
 OK
 ```
